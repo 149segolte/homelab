@@ -30,6 +30,12 @@ variable "vault_password" {
   sensitive   = true
 }
 
+variable "internal_network" {
+  description = "Whether the proxmox environment is on an internal network"
+  type        = bool
+  default     = false
+}
+
 locals {
   vault_cert    = "/Users/one49segolte/Documents/hc_vault/vault-cert.pem"
   kv_store_path = "homelab/terraform"
@@ -64,7 +70,8 @@ data "vault_generic_secret" "healthcheck" {
 # }
 
 data "vault_generic_secret" "kv_store" {
-  path = "sys/mounts/${local.kv_store_path}"
+  depends_on = [data.vault_generic_secret.healthcheck]
+  path       = "sys/mounts/${local.kv_store_path}"
   lifecycle {
     postcondition {
       condition     = provider::assert::true(self.data.type == "kv")
@@ -86,12 +93,17 @@ data "vault_generic_secret" "kv_store" {
 # }
 
 data "vault_kv_secret_v2" "data_proxmox" {
-  mount = local.kv_store_path
-  name  = "proxmox"
+  depends_on = [data.vault_generic_secret.kv_store]
+  mount      = local.kv_store_path
+  name       = "proxmox"
   lifecycle {
     postcondition {
-      condition     = provider::assert::key("endpoint", self.data)
-      error_message = "kv store does not contain proxmox endpoint"
+      condition     = provider::assert::key("endpoint_internal", self.data)
+      error_message = "kv store does not contain proxmox endpoint_internal"
+    }
+    postcondition {
+      condition     = provider::assert::key("endpoint_external", self.data)
+      error_message = "kv store does not contain proxmox endpoint_external"
     }
     postcondition {
       condition     = provider::assert::key("username", self.data)
@@ -101,6 +113,10 @@ data "vault_kv_secret_v2" "data_proxmox" {
       condition     = provider::assert::key("password", self.data)
       error_message = "kv store does not contain proxmox password"
     }
+    postcondition {
+      condition     = provider::assert::key("node", self.data)
+      error_message = "kv store does not contain proxmox node"
+    }
   }
 }
 
@@ -109,16 +125,42 @@ data "vault_kv_secret_v2" "data_proxmox" {
 # }
 
 provider "proxmox" {
-  endpoint = data.vault_kv_secret_v2.data_proxmox.data["endpoint"]
+  endpoint = var.internal_network ? data.vault_kv_secret_v2.data_proxmox.data["endpoint_internal"] : data.vault_kv_secret_v2.data_proxmox.data["endpoint_external"]
   username = data.vault_kv_secret_v2.data_proxmox.data["username"]
   password = data.vault_kv_secret_v2.data_proxmox.data["password"]
 
   # because self-signed TLS certificate is in use
   insecure = true
+
+  ssh {
+    username = data.vault_kv_secret_v2.data_proxmox.data["username"]
+    password = data.vault_kv_secret_v2.data_proxmox.data["password"]
+    agent    = true
+  }
 }
 
-data "proxmox_virtual_environment_nodes" "available_nodes" {}
+data "proxmox_virtual_environment_nodes" "available_nodes" {
+  lifecycle {
+    postcondition {
+      condition     = provider::assert::true(length(self.names) > 0)
+      error_message = "No nodes available in the proxmox environment"
+    }
+  }
+}
 
 # output "proxmox_nodes" {
 #   value = data.proxmox_virtual_environment_nodes.available_nodes
+# }
+
+locals {
+  proxmox_node = data.vault_kv_secret_v2.data_proxmox.data["node"]
+}
+
+data "proxmox_virtual_environment_node" "node" {
+  depends_on = [data.proxmox_virtual_environment_nodes.available_nodes]
+  node_name  = local.proxmox_node
+}
+
+# output "proxmox_node" {
+#   value = nonsensitive(data.proxmox_virtual_environment_node.node)
 # }
