@@ -36,15 +36,26 @@ variable "internal_network" {
   default     = false
 }
 
+variable "vault_cert" {
+  description = "The path to the vault certificate"
+  type        = string
+  sensitive   = true
+}
+
+variable "kv_store_path" {
+  description = "The path to the kv store"
+  type        = string
+  default     = "homelab/terraform"
+}
+
 locals {
-  vault_cert    = "/Users/one49segolte/Documents/hc_vault/vault-cert.pem"
-  kv_store_path = "homelab/terraform"
+  vault_addr = "https://127.0.0.1:8200"
 }
 
 provider "vault" {
   # Only use hardcoded values if vault is running locally, otherwise use environment variables like VAULT_ADDR, VAULT_TOKEN, etc.
-  address      = "https://127.0.0.1:8200"
-  ca_cert_file = local.vault_cert
+  address      = local.vault_addr
+  ca_cert_file = var.vault_cert
   auth_login_userpass {
     username = var.vault_username
     password = var.vault_password
@@ -71,19 +82,19 @@ data "vault_generic_secret" "healthcheck" {
 
 data "vault_generic_secret" "kv_store" {
   depends_on = [data.vault_generic_secret.healthcheck]
-  path       = "sys/mounts/${local.kv_store_path}"
+  path       = "sys/mounts/${var.kv_store_path}"
   lifecycle {
     postcondition {
       condition     = provider::assert::true(self.data.type == "kv")
-      error_message = "secret engine ${local.kv_store_path} is not a kv store"
+      error_message = "secret engine ${var.kv_store_path} is not a kv store"
     }
     postcondition {
       condition     = provider::assert::valid_json(self.data.options)
-      error_message = "kv store ${local.kv_store_path} options are not valid JSON"
+      error_message = "kv store ${var.kv_store_path} options are not valid JSON"
     }
     postcondition {
       condition     = provider::assert::true(jsondecode(self.data.options).version == "2")
-      error_message = "kv store ${local.kv_store_path} is not version 2"
+      error_message = "kv store ${var.kv_store_path} is not version 2"
     }
   }
 }
@@ -94,7 +105,7 @@ data "vault_generic_secret" "kv_store" {
 
 data "vault_kv_secret_v2" "data_proxmox" {
   depends_on = [data.vault_generic_secret.kv_store]
-  mount      = local.kv_store_path
+  mount      = var.kv_store_path
   name       = "proxmox"
   lifecycle {
     postcondition {
@@ -139,6 +150,10 @@ provider "proxmox" {
   }
 }
 
+locals {
+  proxmox_node = data.vault_kv_secret_v2.data_proxmox.data["node"]
+}
+
 data "proxmox_virtual_environment_nodes" "available_nodes" {
   lifecycle {
     postcondition {
@@ -151,10 +166,6 @@ data "proxmox_virtual_environment_nodes" "available_nodes" {
 # output "proxmox_nodes" {
 #   value = data.proxmox_virtual_environment_nodes.available_nodes
 # }
-
-locals {
-  proxmox_node = data.vault_kv_secret_v2.data_proxmox.data["node"]
-}
 
 data "proxmox_virtual_environment_node" "node" {
   depends_on = [data.proxmox_virtual_environment_nodes.available_nodes]
