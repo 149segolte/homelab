@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/vault"
       version = "4.6.0"
     }
+    proxmox = {
+      source  = "bpg/proxmox"
+      version = "0.73.0"
+    }
     assert = {
       source  = "hashicorp/assert"
       version = "0.15.0"
@@ -86,4 +90,42 @@ data "vault_generic_secret" "kv_store" {
 
 # output "kv_store" {
 #   value = nonsensitive(data.vault_generic_secret.kv_store.data)
+# }
+
+data "vault_kv_secret_v2" "data_proxmox" {
+  mount = var.kv_store_path
+  name  = "proxmox"
+  lifecycle {
+    postcondition {
+      condition     = provider::assert::key("endpoint", self.data)
+      error_message = "kv store does not contain proxmox endpoint"
+    }
+    postcondition {
+      condition     = provider::assert::key("username", self.data)
+      error_message = "kv store does not contain proxmox username"
+    }
+    postcondition {
+      condition     = provider::assert::key("password", self.data)
+      error_message = "kv store does not contain proxmox password"
+    }
+  }
+}
+
+# output "proxmox_credentials" {
+#   value = nonsensitive(data.vault_kv_secret_v2.data_proxmox.data)
+# }
+
+provider "proxmox" {
+  endpoint = data.vault_kv_secret_v2.data_proxmox.data["endpoint"]
+  username = data.vault_kv_secret_v2.data_proxmox.data["username"]
+  password = data.vault_kv_secret_v2.data_proxmox.data["password"]
+
+  # because self-signed TLS certificate is in use
+  insecure = true
+}
+
+data "proxmox_virtual_environment_nodes" "available_nodes" {}
+
+# output "proxmox_nodes" {
+#   value = data.proxmox_virtual_environment_nodes.available_nodes
 # }
