@@ -19,12 +19,6 @@ terraform {
   }
 }
 
-variable "data_terraform" {
-  description = "Path to a dir which contains terraform related files"
-  type        = string
-  default     = "/Users/one49segolte/Documents"
-}
-
 variable "vault_username" {
   description = "The username for the local vault user"
   type        = string
@@ -36,16 +30,15 @@ variable "vault_password" {
   sensitive   = true
 }
 
-variable "kv_store_path" {
-  description = "The path to the kv store"
-  type        = string
-  default     = "homelab/terraform"
+locals {
+  vault_cert    = "/Users/one49segolte/Documents/hc_vault/vault-cert.pem"
+  kv_store_path = "homelab/terraform"
 }
 
 provider "vault" {
   # Only use hardcoded values if vault is running locally, otherwise use environment variables like VAULT_ADDR, VAULT_TOKEN, etc.
   address      = "https://127.0.0.1:8200"
-  ca_cert_file = "${var.data_terraform}/hc_vault/vault-cert.pem"
+  ca_cert_file = local.vault_cert
   auth_login_userpass {
     username = var.vault_username
     password = var.vault_password
@@ -71,19 +64,19 @@ data "vault_generic_secret" "healthcheck" {
 # }
 
 data "vault_generic_secret" "kv_store" {
-  path = "sys/mounts/${var.kv_store_path}"
+  path = "sys/mounts/${local.kv_store_path}"
   lifecycle {
     postcondition {
       condition     = provider::assert::true(self.data.type == "kv")
-      error_message = "secret engine ${var.kv_store_path} is not a kv store"
+      error_message = "secret engine ${local.kv_store_path} is not a kv store"
     }
     postcondition {
       condition     = provider::assert::valid_json(self.data.options)
-      error_message = "kv store ${var.kv_store_path} options are not valid JSON"
+      error_message = "kv store ${local.kv_store_path} options are not valid JSON"
     }
     postcondition {
       condition     = provider::assert::true(jsondecode(self.data.options).version == "2")
-      error_message = "kv store ${var.kv_store_path} is not version 2"
+      error_message = "kv store ${local.kv_store_path} is not version 2"
     }
   }
 }
@@ -93,7 +86,7 @@ data "vault_generic_secret" "kv_store" {
 # }
 
 data "vault_kv_secret_v2" "data_proxmox" {
-  mount = var.kv_store_path
+  mount = local.kv_store_path
   name  = "proxmox"
   lifecycle {
     postcondition {
