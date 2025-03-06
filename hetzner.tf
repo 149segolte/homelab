@@ -12,8 +12,25 @@ resource "hcloud_ssh_key" "primary_ssh_key" {
   }
 }
 
-resource "hcloud_firewall" "block-inbound" {
-  name = "block-inbound"
+resource "hcloud_firewall" "restrict-access" {
+  name = "restrict-access"
+  rule {
+    direction  = "in"
+    protocol   = "icmp"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "22"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+  rule {
+    direction  = "in"
+    protocol   = "udp"
+    port       = "41641"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
 
   labels = {
     "used" = "homelab"
@@ -44,6 +61,7 @@ resource "hcloud_server" "remote_node" {
     ipv4_enabled = true
     ipv6_enabled = true
   }
+  firewall_ids = [hcloud_firewall.restrict-access.id]
 
   connection {
     host        = self.ipv4_address
