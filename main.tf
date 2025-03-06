@@ -20,6 +20,10 @@ terraform {
       source  = "hetznercloud/hcloud"
       version = "1.50.0"
     }
+    ignition = {
+      source  = "community-terraform-providers/ignition"
+      version = "2.3.5"
+    }
   }
 }
 
@@ -61,6 +65,10 @@ locals {
     public_key  = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFJDftX2Fu1EzN9S1hO8LMjBG3qepW+kH7TgD33Dx/d2 one49segolte@yigirus.local"
     private_key = length(var.ssh_private_key_file) > 0 ? file(var.ssh_private_key_file) : null
   }
+  coreos = {
+    url    = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${jsondecode(data.http.coreos_stable_builds.response_body).builds[0].id}/aarch64/${jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.path}"
+    sha256 = jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.sha256
+  }
   proxmox = {
     credentials = {
       username = data.vault_kv_secret_v2.secret_proxmox.data["username"]
@@ -81,6 +89,42 @@ locals {
       name     = "hetzner-remote-node"
       type     = "cax11"
       location = "hel1"
+    }
+  }
+  remote_ignition = {
+    hostname = "hetzner-remote-node"
+    user = {
+      name          = "one49segolte"
+      password_hash = "$y$j9T$u9UeIl5kfbBegG44PRQW6/$HAba.BFa9Ky4fTTyfEFQWcEfMXKpbldtBEGirPBvue2"
+      groups        = ["wheel", "sudo", "docker"]
+    }
+  }
+}
+
+data "http" "coreos_stable_builds" {
+  url = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/builds.json"
+  request_headers = {
+    Accept = "application/json"
+  }
+
+  lifecycle {
+    postcondition {
+      condition     = contains([200], self.status_code)
+      error_message = "Could not get the CoreOS stable builds.json"
+    }
+  }
+}
+
+data "http" "coreos_stable_aarch64_build" {
+  url = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${jsondecode(data.http.coreos_stable_builds.response_body).builds[0].id}/aarch64/meta.json"
+  request_headers = {
+    Accept = "application/json"
+  }
+
+  lifecycle {
+    postcondition {
+      condition     = contains([200], self.status_code)
+      error_message = "Could not get the CoreOS stable aarch64 meta.json"
     }
   }
 }

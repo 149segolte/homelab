@@ -47,38 +47,58 @@ resource "hcloud_server" "remote_node" {
 
   connection {
     host        = self.ipv4_address
-    timeout     = "5m"
+    timeout     = "4m" # Rough numbers: 30s provisioning, 1m15s rescue mode boot, 15s img verify, 45s img write, 15s reboot = 3m + leeway
     user        = "root"
     private_key = local.ssh.private_key
     agent       = provider::assert::null(local.ssh.private_key) ? true : false
   }
 
-  # Wait for the server to be available
+  # Wait for the hetzner rescue mode to boot
   provisioner "remote-exec" {
-    inline = ["echo 'connected!'"]
+    inline = ["echo 'Rescue mode booted!'"]
   }
 
-  # Copy config.yaml
-  provisioner "file" {
-    content     = file("config.yaml")
-    destination = "/root/config.yaml"
-  }
-
-  # Only do this if the server has enough resources
   provisioner "remote-exec" {
     inline = [
       "set -x",
-      "apt update",
-      "apt install podman -y",
-      "update-alternatives --set iptables /usr/sbin/iptables-legacy",
-      "podman run --pull=always --privileged --rm -v /dev:/dev -v /run/udev:/run/udev -v .:/data -w /data quay.io/coreos/coreos-installer:release install /dev/sda -i config.ign",
+      "export COREOS_IMAGE=\"${local.coreos.url}\"",
+      "export COREOS_SHA256=\"${local.coreos.sha256}\"",
+      "curl -sL \"$COREOS_IMAGE\" -o /tmp/coreos.raw.xz",
+      "echo \"$COREOS_SHA256  /tmp/coreos.raw.xz\" | sha256sum -c --status",
+    ]
+    on_failure = fail
+  }
+
+  # Copy config.ign
+  provisioner "file" {
+    content     = data.ignition_config.remote_node.rendered
+    destination = "/root/config.ign"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "set -x",
+      "xzcat /tmp/coreos.raw.xz | dd of=/dev/sda bs=4M",
+      # Mount /boot partition
+      "mount /dev/sda3 /mnt",
+      "mkdir -p /mnt/ignition",
+      "cp /root/config.ign /mnt/ignition/config.ign",
+      "umount /mnt",
+      "sync",
       "reboot"
     ]
   }
 
-  # Wait for the server to be available
+  # Wait for the server to reboot
   provisioner "remote-exec" {
-    inline = ["echo 'connected!'"]
+    connection {
+      host        = self.ipv4_address
+      timeout     = "1m"
+      user        = local.remote_ignition.user.name
+      private_key = local.ssh.private_key
+    }
+
+    inline = ["echo 'CoreOS booted!'"]
   }
 
   labels = {
