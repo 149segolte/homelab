@@ -61,3 +61,20 @@ data "vault_kv_secret_v2" "secret_proxmox" {
 # output "proxmox_credentials" {
 #   value = nonsensitive(data.vault_kv_secret_v2.secret_proxmox.data)
 # }
+
+data "vault_kv_secret_v2" "secret_hetzner" {
+  depends_on = [data.vault_generic_secret.kv_store]
+  mount      = local.vault.kv_store_path
+  name       = "hetzner"
+
+  lifecycle {
+    postcondition {
+      condition     = provider::assert::key("token", self.data)
+      error_message = "kv store does not contain hetzner token"
+    }
+  }
+}
+
+# output "hetzner_token" {
+#   value = nonsensitive(data.vault_kv_secret_v2.secret_hetzner.data)
+# }

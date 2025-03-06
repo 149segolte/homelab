@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/assert"
       version = "0.15.0"
     }
+    hcloud = {
+      source  = "hetznercloud/hcloud"
+      version = "1.50.0"
+    }
   }
 }
 
@@ -56,6 +60,17 @@ locals {
       name              = "novasking"
       endpoint_external = "https://192.168.0.51:8006"
       endpoint_internal = "https://novasking.proxmox.arpa:8006"
+    }
+  }
+  hetzner = {
+    client = {
+      token         = data.vault_kv_secret_v2.secret_hetzner.data["token"]
+      poll_interval = "1000ms"
+    }
+    node = {
+      name     = "hetzner-remote-node"
+      type     = "cax11"
+      location = "hel1"
     }
   }
 }
