@@ -49,8 +49,8 @@ locals {
   }
   proxmox = {
     credentials = {
-      username = data.vault_kv_secret_v2.secret_proxmox_creds.data["username"]
-      password = data.vault_kv_secret_v2.secret_proxmox_creds.data["password"]
+      username = data.vault_kv_secret_v2.secret_proxmox.data["username"]
+      password = data.vault_kv_secret_v2.secret_proxmox.data["password"]
     }
     node = {
       name              = "novasking"

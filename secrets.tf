@@ -2,6 +2,7 @@ provider "vault" {
   # Only use hardcoded values if vault is running locally, otherwise use environment variables like VAULT_ADDR, VAULT_TOKEN, etc.
   address      = local.vault.address
   ca_cert_file = var.vault_cert
+
   auth_login_userpass {
     username = var.vault_username
     password = var.vault_password
@@ -19,6 +20,7 @@ data "vault_generic_secret" "healthcheck" {
 data "vault_generic_secret" "kv_store" {
   depends_on = [data.vault_generic_secret.healthcheck]
   path       = "sys/mounts/${local.vault.kv_store_path}"
+
   lifecycle {
     postcondition {
       condition     = provider::assert::true(self.data.type == "kv")
@@ -39,10 +41,11 @@ data "vault_generic_secret" "kv_store" {
 #   value = nonsensitive(data.vault_generic_secret.kv_store.data)
 # }
 
-data "vault_kv_secret_v2" "secret_proxmox_creds" {
+data "vault_kv_secret_v2" "secret_proxmox" {
   depends_on = [data.vault_generic_secret.kv_store]
   mount      = local.vault.kv_store_path
   name       = "proxmox"
+
   lifecycle {
     postcondition {
       condition     = provider::assert::key("username", self.data)
@@ -56,5 +59,5 @@ data "vault_kv_secret_v2" "secret_proxmox_creds" {
 }
 
 # output "proxmox_credentials" {
-#   value = nonsensitive(data.vault_kv_secret_v2.secrets_proxmox_creds.data)
+#   value = nonsensitive(data.vault_kv_secret_v2.secret_proxmox.data)
 # }
