@@ -40,6 +40,12 @@ variable "vault_cert" {
   sensitive   = true
 }
 
+variable "ssh_private_key_file" {
+  description = "The path to the private key for SSH, leave empty if using agent"
+  type        = string
+  sensitive   = true
+}
+
 variable "internal_network" {
   description = "Whether the proxmox environment is on an internal network"
   type        = bool
@@ -50,6 +56,10 @@ locals {
   vault = {
     address       = "https://localhost:8200"
     kv_store_path = "homelab/terraform"
+  }
+  ssh = {
+    public_key  = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFJDftX2Fu1EzN9S1hO8LMjBG3qepW+kH7TgD33Dx/d2 one49segolte@yigirus.local"
+    private_key = length(var.ssh_private_key_file) > 0 ? file(var.ssh_private_key_file) : null
   }
   proxmox = {
     credentials = {

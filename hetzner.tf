@@ -3,8 +3,13 @@ provider "hcloud" {
   poll_interval = local.hetzner.client.poll_interval
 }
 
-data "hcloud_ssh_key" "primary_ssh_key" {
-  with_selector = "used=homelab"
+resource "hcloud_ssh_key" "primary_ssh_key" {
+  name       = "primary_ssh_key"
+  public_key = local.ssh.public_key
+
+  labels = {
+    "used" = "homelab"
+  }
 }
 
 resource "hcloud_firewall" "block-inbound" {
@@ -33,20 +38,19 @@ resource "hcloud_server" "remote_node" {
   # Image is ignored, as we boot into rescue mode, but is a required field
   image    = local.fedora_image
   rescue   = "linux64"
-  ssh_keys = [data.hcloud_ssh_key.primary_ssh_key.id]
+  ssh_keys = [hcloud_ssh_key.primary_ssh_key.id]
 
   public_net {
     ipv4_enabled = true
     ipv6_enabled = true
   }
-  firewall_ids       = [hcloud_firewall.block-inbound.id]
-  delete_protection  = true
-  rebuild_protection = true
 
   connection {
-    host    = self.ipv4_address
-    timeout = "5m"
-    user    = "root"
+    host        = self.ipv4_address
+    timeout     = "5m"
+    user        = "root"
+    private_key = local.ssh.private_key
+    agent       = provider::assert::null(local.ssh.private_key) ? true : false
   }
 
   # Wait for the server to be available
