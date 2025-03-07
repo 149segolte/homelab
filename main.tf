@@ -24,6 +24,10 @@ terraform {
       source  = "community-terraform-providers/ignition"
       version = "2.3.5"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "3.7.1"
+    }
   }
 }
 
@@ -44,27 +48,27 @@ variable "vault_cert" {
   sensitive   = true
 }
 
-variable "ssh_private_key_file" {
-  description = "The path to the private key for SSH, leave empty if using agent"
-  type        = string
-  sensitive   = true
-}
-
 locals {
   vault = {
     address       = "https://localhost:8200"
     kv_store_path = "homelab/terraform"
   }
-  ssh = {
-    public_key  = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFJDftX2Fu1EzN9S1hO8LMjBG3qepW+kH7TgD33Dx/d2 one49segolte@yigirus.local"
-    private_key = length(var.ssh_private_key_file) > 0 ? file(var.ssh_private_key_file) : null
+  user = {
+    name          = "one49segolte"
+    password      = random_password.password.result
+    password_hash = random_password.password.bcrypt_hash
+    groups        = ["wheel", "sudo", "docker"]
+    ssh = {
+      public_key  = data.vault_kv_secret_v2.secret_ssh.data["public_key"]
+      private_key = data.vault_kv_secret_v2.secret_ssh.data["private_key"]
+    }
   }
   os_releases = {
     coreos = {
       url    = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${jsondecode(data.http.coreos_stable_builds.response_body).builds[0].id}/aarch64/${jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.path}"
       sha256 = jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.sha256
     }
-    alpine = {
+    generic_alpine = {
       url = join("", [
         "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/cloud/",
         tostring(reverse(
@@ -92,7 +96,7 @@ locals {
       # endpoint  = "https://192.168.0.51:8006"
     }
     data_provider = {
-      name    = "data_provider"
+      name    = "dataprovider"
       restore = false
     }
   }
@@ -109,12 +113,16 @@ locals {
   }
   remote_ignition = {
     hostname = "hetzner-remote-node"
-    user = {
-      name          = "one49segolte"
-      password_hash = "$y$j9T$u9UeIl5kfbBegG44PRQW6/$HAba.BFa9Ky4fTTyfEFQWcEfMXKpbldtBEGirPBvue2"
-      groups        = ["wheel", "sudo", "docker"]
-    }
   }
+}
+
+resource "random_password" "password" {
+  length      = 16
+  special     = true
+  min_upper   = 2
+  min_lower   = 2
+  min_numeric = 2
+  min_special = 2
 }
 
 data "http" "coreos_stable_builds" {

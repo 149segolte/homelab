@@ -78,3 +78,20 @@ data "vault_kv_secret_v2" "secret_hetzner" {
 # output "hetzner_token" {
 #   value = nonsensitive(data.vault_kv_secret_v2.secret_hetzner.data)
 # }
+
+data "vault_kv_secret_v2" "secret_ssh" {
+  depends_on = [data.vault_generic_secret.kv_store]
+  mount      = local.vault.kv_store_path
+  name       = "ssh"
+
+  lifecycle {
+    postcondition {
+      condition     = provider::assert::key("public_key", self.data)
+      error_message = "kv store does not contain ssh public key"
+    }
+    postcondition {
+      condition     = provider::assert::key("private_key", self.data)
+      error_message = "kv store does not contain ssh private key"
+    }
+  }
+}

@@ -59,19 +59,9 @@ resource "proxmox_virtual_environment_download_file" "alpine_cloudinit_qcow2" {
   node_name          = data.proxmox_virtual_environment_node.node.node_name
   datastore_id       = local.iso_datastore_id
   content_type       = "iso"
-  file_name          = join(".", [reverse(split("/", local.os_releases.alpine.url))[0], "img"])
-  url                = local.os_releases.alpine.url
-  checksum           = local.os_releases.alpine.sha512
-  checksum_algorithm = "sha512"
-}
-
-resource "proxmox_virtual_environment_download_file" "alpine_cloudinit" {
-  node_name          = data.proxmox_virtual_environment_node.node.node_name
-  datastore_id       = local.iso_datastore_id
-  content_type       = "iso"
-  file_name          = join(".", [reverse(split("/", local.os_releases.testing.url))[0], "img"])
-  url                = local.os_releases.testing.url
-  checksum           = local.os_releases.testing.sha512
+  file_name          = join(".", [reverse(split("/", local.os_releases.generic_alpine.url))[0], "img"])
+  url                = local.os_releases.generic_alpine.url
+  checksum           = local.os_releases.generic_alpine.sha512
   checksum_algorithm = "sha512"
 }
 
@@ -82,7 +72,9 @@ resource "proxmox_virtual_environment_file" "data_provider_config" {
 
   source_raw {
     data = templatefile("${path.module}/proxmox/data_provider/cloud-config.yml.tpl", {
-      ssh_public_key = local.ssh.public_key
+      username       = local.user.name
+      groups         = join(",", local.user.groups)
+      ssh_public_key = local.user.ssh.public_key
     })
 
     file_name = "data_provider.cloud-config.yaml"
@@ -128,7 +120,7 @@ resource "proxmox_virtual_environment_vm" "data_provider" {
 
   disk {
     datastore_id = local.images_datastore1_id
-    file_id      = proxmox_virtual_environment_download_file.alpine_cloudinit.id
+    file_id      = proxmox_virtual_environment_download_file.alpine_cloudinit_qcow2.id
     interface    = "scsi0"
     size         = 2
     backup       = true

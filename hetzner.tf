@@ -5,7 +5,7 @@ provider "hcloud" {
 
 resource "hcloud_ssh_key" "primary_ssh_key" {
   name       = "primary_ssh_key"
-  public_key = local.ssh.public_key
+  public_key = local.user.ssh.public_key
 
   labels = {
     "used" = "homelab"
@@ -67,8 +67,7 @@ resource "hcloud_server" "remote_node" {
     host        = self.ipv4_address
     timeout     = "4m" # Rough numbers: 30s provisioning, 1m15s rescue mode boot, 15s img verify, 45s img write, 15s reboot = 3m + leeway
     user        = "root"
-    private_key = local.ssh.private_key
-    agent       = provider::assert::null(local.ssh.private_key) ? true : false
+    private_key = local.user.ssh.private_key
   }
 
   # Wait for the hetzner rescue mode to boot
@@ -112,8 +111,8 @@ resource "hcloud_server" "remote_node" {
     connection {
       host        = self.ipv4_address
       timeout     = "1m"
-      user        = local.remote_ignition.user.name
-      private_key = local.ssh.private_key
+      user        = local.user.name
+      private_key = local.user.ssh.private_key
     }
 
     inline = ["echo 'CoreOS booted!'"]

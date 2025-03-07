@@ -13,10 +13,9 @@ data "ignition_config" "remote_node" {
 }
 
 data "ignition_user" "user" {
-  name                = local.remote_ignition.user.name
-  password_hash       = local.remote_ignition.user.password_hash
-  ssh_authorized_keys = [local.ssh.public_key]
-  groups              = local.remote_ignition.user.groups
+  name                = local.user.name
+  ssh_authorized_keys = [local.user.ssh.public_key]
+  groups              = local.user.groups
 }
 
 data "ignition_file" "hostname" {

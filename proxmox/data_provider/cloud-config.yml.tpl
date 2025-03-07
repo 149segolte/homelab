@@ -4,8 +4,8 @@ create_hostname_file: true
 chpasswd:
   expire: false
 users:
-  - name: dataprovider
-    groups: wheel, sudo
+  - name: ${ username }
+    groups: [${ groups }]
     doas: [permit nopass :wheel]
     ssh_authorized_keys:
       - ${ ssh_public_key }
