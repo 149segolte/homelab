@@ -79,8 +79,8 @@ resource "hcloud_server" "remote_node" {
   provisioner "remote-exec" {
     inline = [
       "set -x",
-      "export COREOS_IMAGE=\"${local.coreos.url}\"",
-      "export COREOS_SHA256=\"${local.coreos.sha256}\"",
+      "export COREOS_IMAGE=\"${local.os_releases.coreos.url}\"",
+      "export COREOS_SHA256=\"${local.os_releases.coreos.sha256}\"",
       "curl -sL \"$COREOS_IMAGE\" -o /tmp/coreos.raw.xz",
       "echo \"$COREOS_SHA256  /tmp/coreos.raw.xz\" | sha256sum -c --status",
     ]

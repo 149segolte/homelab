@@ -50,12 +50,6 @@ variable "ssh_private_key_file" {
   sensitive   = true
 }
 
-variable "internal_network" {
-  description = "Whether the proxmox environment is on an internal network"
-  type        = bool
-  default     = false
-}
-
 locals {
   vault = {
     address       = "https://localhost:8200"
@@ -65,9 +59,26 @@ locals {
     public_key  = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFJDftX2Fu1EzN9S1hO8LMjBG3qepW+kH7TgD33Dx/d2 one49segolte@yigirus.local"
     private_key = length(var.ssh_private_key_file) > 0 ? file(var.ssh_private_key_file) : null
   }
-  coreos = {
-    url    = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${jsondecode(data.http.coreos_stable_builds.response_body).builds[0].id}/aarch64/${jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.path}"
-    sha256 = jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.sha256
+  os_releases = {
+    coreos = {
+      url    = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${jsondecode(data.http.coreos_stable_builds.response_body).builds[0].id}/aarch64/${jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.path}"
+      sha256 = jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.sha256
+    }
+    alpine = {
+      url = join("", [
+        "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/cloud/",
+        tostring(reverse(
+          [for y in
+            [for x in
+              split("\n", data.http.alpine_stable_builds.response_body) : regex("^<a href=\\\"(.*)\">", x)[0]
+              if startswith(x, "<a href=")
+            ] : y
+            if length(y) > 0 && strcontains(y, "generic") && strcontains(y, "x86_64") && strcontains(y, "bios") && strcontains(y, "cloudinit") && !strcontains(y, "metal") && strcontains(y, ".qcow2") && !strcontains(y, "asc") && !strcontains(y, "sha512")
+          ]
+        )[0])
+      ])
+      sha512 = trimspace(data.http.alpine_stable_build_checksum.response_body)
+    }
   }
   proxmox = {
     credentials = {
@@ -75,9 +86,14 @@ locals {
       password = data.vault_kv_secret_v2.secret_proxmox.data["password"]
     }
     node = {
-      name              = "novasking"
-      endpoint_external = "https://192.168.0.51:8006"
-      endpoint_internal = "https://novasking.proxmox.arpa:8006"
+      name      = "novasking"
+      vm_bridge = "vmbr2"
+      endpoint  = "https://novasking.proxmox.arpa:8006"
+      # endpoint  = "https://192.168.0.51:8006"
+    }
+    data_provider = {
+      name    = "data_provider"
+      restore = false
     }
   }
   hetzner = {
@@ -125,6 +141,42 @@ data "http" "coreos_stable_aarch64_build" {
     postcondition {
       condition     = contains([200], self.status_code)
       error_message = "Could not get the CoreOS stable aarch64 meta.json"
+    }
+  }
+}
+
+data "http" "alpine_stable_builds" {
+  url = "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/cloud/"
+  request_headers = {
+    Accept = "text/html"
+  }
+
+  lifecycle {
+    postcondition {
+      condition     = contains([200], self.status_code)
+      error_message = "Could not get the Alpine Linux stable builds"
+    }
+  }
+}
+
+data "http" "alpine_stable_build_checksum" {
+  url = join("", [
+    "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/cloud/",
+    tostring(reverse(
+      [for y in
+        [for x in
+          split("\n", data.http.alpine_stable_builds.response_body) : regex("^<a href=\\\"(.*)\">", x)[0]
+          if startswith(x, "<a href=")
+        ] : y
+        if length(y) > 0 && strcontains(y, "generic") && strcontains(y, "x86_64") && strcontains(y, "bios") && strcontains(y, "cloudinit") && !strcontains(y, "metal") && strcontains(y, ".qcow2") && !strcontains(y, "asc") && strcontains(y, "sha512")
+      ]
+    )[0])
+  ])
+
+  lifecycle {
+    postcondition {
+      condition     = contains([200], self.status_code)
+      error_message = "Could not get the Alpine Linux stable build checksum"
     }
   }
 }
