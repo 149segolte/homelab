@@ -24,15 +24,134 @@ data "proxmox_virtual_environment_nodes" "available_nodes" {
   }
 }
 
-# output "proxmox_nodes" {
-#   value = data.proxmox_virtual_environment_nodes.available_nodes
-# }
-
 data "proxmox_virtual_environment_node" "node" {
   depends_on = [data.proxmox_virtual_environment_nodes.available_nodes]
   node_name  = local.proxmox.node.name
 }
 
-# output "proxmox_node" {
-#   value = nonsensitive(data.proxmox_virtual_environment_node.node)
-# }
+data "proxmox_virtual_environment_datastores" "datastores" {
+  node_name = data.proxmox_virtual_environment_node.node.node_name
+
+  lifecycle {
+    postcondition {
+      condition     = contains(flatten(self.content_types), "iso")
+      error_message = "No ISO datastores available in the proxmox environment"
+    }
+    postcondition {
+      condition     = contains(flatten(self.content_types), "snippets")
+      error_message = "No snippets datastores available in the proxmox environment"
+    }
+    postcondition {
+      condition     = contains(flatten(self.content_types), "images")
+      error_message = "No images datastores available in the proxmox environment"
+    }
+  }
+}
+
+locals {
+  iso_datastore_id      = element(data.proxmox_virtual_environment_datastores.datastores.datastore_ids, tonumber(transpose(zipmap(range(length(data.proxmox_virtual_environment_datastores.datastores.content_types)), data.proxmox_virtual_environment_datastores.datastores.content_types))["iso"][0]))
+  snippets_datastore_id = element(data.proxmox_virtual_environment_datastores.datastores.datastore_ids, tonumber(transpose(zipmap(range(length(data.proxmox_virtual_environment_datastores.datastores.content_types)), data.proxmox_virtual_environment_datastores.datastores.content_types))["snippets"][0]))
+  images_datastore1_id  = element(data.proxmox_virtual_environment_datastores.datastores.datastore_ids, tonumber(transpose(zipmap(range(length(data.proxmox_virtual_environment_datastores.datastores.content_types)), data.proxmox_virtual_environment_datastores.datastores.content_types))["images"][0]))
+  images_datastore2_id  = element(data.proxmox_virtual_environment_datastores.datastores.datastore_ids, tonumber(transpose(zipmap(range(length(data.proxmox_virtual_environment_datastores.datastores.content_types)), data.proxmox_virtual_environment_datastores.datastores.content_types))["images"][1]))
+}
+
+resource "proxmox_virtual_environment_download_file" "alpine_cloudinit_qcow2" {
+  node_name          = data.proxmox_virtual_environment_node.node.node_name
+  datastore_id       = local.iso_datastore_id
+  content_type       = "iso"
+  file_name          = join(".", [reverse(split("/", local.os_releases.alpine.url))[0], "img"])
+  url                = local.os_releases.alpine.url
+  checksum           = local.os_releases.alpine.sha512
+  checksum_algorithm = "sha512"
+}
+
+resource "proxmox_virtual_environment_download_file" "alpine_cloudinit" {
+  node_name          = data.proxmox_virtual_environment_node.node.node_name
+  datastore_id       = local.iso_datastore_id
+  content_type       = "iso"
+  file_name          = join(".", [reverse(split("/", local.os_releases.testing.url))[0], "img"])
+  url                = local.os_releases.testing.url
+  checksum           = local.os_releases.testing.sha512
+  checksum_algorithm = "sha512"
+}
+
+resource "proxmox_virtual_environment_file" "data_provider_config" {
+  content_type = "snippets"
+  datastore_id = local.snippets_datastore_id
+  node_name    = data.proxmox_virtual_environment_node.node.node_name
+
+  source_raw {
+    data = templatefile("${path.module}/proxmox/data_provider/cloud-config.yml.tpl", {
+      ssh_public_key = local.ssh.public_key
+    })
+
+    file_name = "data_provider.cloud-config.yaml"
+  }
+}
+
+resource "proxmox_virtual_environment_vm" "data_provider" {
+  count       = local.proxmox.data_provider.restore ? 0 : 1
+  name        = "data-provider"
+  description = "Proxmox data provider"
+  node_name   = data.proxmox_virtual_environment_node.node.node_name
+  machine     = "q35"
+  vm_id       = 4201
+
+  agent {
+    enabled = true
+  }
+
+  on_boot = true
+  startup {
+    order      = "1"
+    up_delay   = "30"
+    down_delay = "30"
+  }
+
+  cpu {
+    cores = 1
+    type  = "x86-64-v2-AES"
+  }
+
+  memory {
+    dedicated = 2048
+    floating  = 2048
+  }
+
+  network_device {
+    bridge = local.proxmox.node.vm_bridge
+  }
+
+  operating_system {
+    type = "l26"
+  }
+
+  disk {
+    datastore_id = local.images_datastore1_id
+    file_id      = proxmox_virtual_environment_download_file.alpine_cloudinit.id
+    interface    = "scsi0"
+    size         = 2
+    backup       = true
+  }
+
+  disk {
+    datastore_id = local.images_datastore2_id
+    interface    = "scsi1"
+    size         = 16
+    file_format  = "raw"
+    backup       = true
+  }
+
+  initialization {
+    datastore_id      = local.images_datastore1_id
+    user_data_file_id = proxmox_virtual_environment_file.data_provider_config.id
+
+    ip_config {
+      ipv4 {
+        address = "dhcp"
+      }
+    }
+  }
+
+  tags = ["homelab"]
+}
