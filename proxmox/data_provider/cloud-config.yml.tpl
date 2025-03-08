@@ -1,20 +1,14 @@
 #cloud-config
-hostname: dataprovider
-create_hostname_file: true
+hostname: ${ hostname }
 chpasswd:
   expire: false
 users:
   - name: ${ username }
     groups: [${ groups }]
-    doas: [permit nopass :wheel]
+    doas:
+      - permit nopass ${ username } as root
     ssh_authorized_keys:
       - ${ ssh_public_key }
-packages:
-  - qemu-guest-agent
-  - qemu-guest-agent-openrc
-  - nfs-utils
-  - btrfs-progs
-  - zstd
 disk_setup:
   /dev/sdb:
     table_type: gpt
@@ -27,13 +21,25 @@ fs_setup:
     overwrite: false
 mounts:
   - [swap]
-  - ["/dev/sdb1", "/mnt/data", "btrfs", "defaults,nofail,noatime,compress=zstd", "0", "0"]
-bootcmd:
-  - ["cloud-init-per", "always", "remove_exports", "echo '' > /etc/exports"]
-  - ["cloud-init-per", "always", "load_shares", "mountpoint /mnt/data && echo '/mnt/data *(rw,no_root_squash,no_subtree_check)' > /etc/exports"]
-  - ["cloud-init-per", "always", "reload_exports", "exportfs -rafv"]
+  - [
+      "/dev/sdb1",
+      "/mnt/data",
+      "btrfs",
+      "defaults,nofail,noatime,compress=zstd",
+      "0",
+      "0",
+    ]
+packages:
+  - nfs-utils
+package_reboot_if_required: true
+write_files:
+  - path: /etc/exports
+    content: |
+      /mnt/data *(rw,sync,no_subtree_check)
+    defer: true
 runcmd:
-  - rc-update add qemu-guest-agent
-  - rc-update add nfs
-  - rc-service qemu-guest-agent start
-  - rc-service nfs start
+  - ["rc-update", "add", "nfs"]
+power_state:
+  delay: 1
+  mode: reboot
+  message: Rebooting after cloud-init

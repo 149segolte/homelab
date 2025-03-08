@@ -22,7 +22,7 @@ data "ignition_file" "hostname" {
   path = "/etc/hostname"
   mode = 420
   content {
-    content = local.remote_ignition.hostname
+    content = local.hetzner.node.name
   }
 }
 

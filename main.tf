@@ -65,23 +65,12 @@ locals {
   }
   os_releases = {
     coreos = {
-      url    = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${jsondecode(data.http.coreos_stable_builds.response_body).builds[0].id}/aarch64/${jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.path}"
-      sha256 = jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.sha256
+      url      = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${jsondecode(data.http.coreos_stable_builds.response_body).builds[0].id}/aarch64/${jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.path}"
+      checksum = jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.sha256
     }
-    generic_alpine = {
-      url = join("", [
-        "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/cloud/",
-        tostring(reverse(
-          [for y in
-            [for x in
-              split("\n", data.http.alpine_stable_builds.response_body) : regex("^<a href=\\\"(.*)\">", x)[0]
-              if startswith(x, "<a href=")
-            ] : y
-            if length(y) > 0 && strcontains(y, "generic") && strcontains(y, "x86_64") && strcontains(y, "bios") && strcontains(y, "cloudinit") && !strcontains(y, "metal") && strcontains(y, ".qcow2") && !strcontains(y, "asc") && !strcontains(y, "sha512")
-          ]
-        )[0])
-      ])
-      sha512 = trimspace(data.http.alpine_stable_build_checksum.response_body)
+    custom_alpine = {
+      url      = "https://github.com/149segolte/alpine-make-vm-image/releases/latest/download/custom_alpine-x86_64-bios-cloudinit.qcow2"
+      checksum = "none"
     }
   }
   proxmox = {
@@ -110,9 +99,6 @@ locals {
       type     = "cax11"
       location = "hel1"
     }
-  }
-  remote_ignition = {
-    hostname = "hetzner-remote-node"
   }
 }
 
@@ -149,42 +135,6 @@ data "http" "coreos_stable_aarch64_build" {
     postcondition {
       condition     = contains([200], self.status_code)
       error_message = "Could not get the CoreOS stable aarch64 meta.json"
-    }
-  }
-}
-
-data "http" "alpine_stable_builds" {
-  url = "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/cloud/"
-  request_headers = {
-    Accept = "text/html"
-  }
-
-  lifecycle {
-    postcondition {
-      condition     = contains([200], self.status_code)
-      error_message = "Could not get the Alpine Linux stable builds"
-    }
-  }
-}
-
-data "http" "alpine_stable_build_checksum" {
-  url = join("", [
-    "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/cloud/",
-    tostring(reverse(
-      [for y in
-        [for x in
-          split("\n", data.http.alpine_stable_builds.response_body) : regex("^<a href=\\\"(.*)\">", x)[0]
-          if startswith(x, "<a href=")
-        ] : y
-        if length(y) > 0 && strcontains(y, "generic") && strcontains(y, "x86_64") && strcontains(y, "bios") && strcontains(y, "cloudinit") && !strcontains(y, "metal") && strcontains(y, ".qcow2") && !strcontains(y, "asc") && strcontains(y, "sha512")
-      ]
-    )[0])
-  ])
-
-  lifecycle {
-    postcondition {
-      condition     = contains([200], self.status_code)
-      error_message = "Could not get the Alpine Linux stable build checksum"
     }
   }
 }
