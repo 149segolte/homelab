@@ -68,7 +68,7 @@ resource "proxmox_virtual_environment_file" "data_provider_config" {
   node_name    = data.proxmox_virtual_environment_node.node.node_name
 
   source_raw {
-    data = templatefile("${path.module}/proxmox/data_provider/cloud-config.yml.tpl", {
+    data = templatefile("${path.module}/proxmox/data_provider/cloud-config.yml.tftpl", {
       hostname       = local.proxmox.data_provider.name
       username       = local.user.name
       groups         = join(",", local.user.groups)

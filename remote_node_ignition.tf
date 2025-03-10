@@ -68,7 +68,7 @@ data "ignition_filesystem" "coreos_data_fs" {
 data "ignition_systemd_unit" "coreos_data_fs_mount" {
   name    = "${replace(substr(data.ignition_filesystem.coreos_data_fs.path, 1, -1), "/", "-")}.mount"
   enabled = true
-  content = templatefile("${path.module}/systemd/fs.mount.tpl", {
+  content = templatefile("${path.module}/systemd/fs.mount.tftpl", {
     type     = "disk"
     network  = null
     location = data.ignition_filesystem.coreos_data_fs.device
@@ -80,7 +80,7 @@ data "ignition_systemd_unit" "coreos_data_fs_mount" {
 data "ignition_systemd_unit" "wait_tailscale_up" {
   name    = "wait-tailscale-up.service"
   enabled = true
-  content = templatefile("${path.module}/systemd/network_reachable.service.tpl", {
+  content = templatefile("${path.module}/systemd/network_reachable.service.tftpl", {
     dependency = "tailscaled.service"
     address    = "192.168.2.1"
   })
@@ -89,7 +89,7 @@ data "ignition_systemd_unit" "wait_tailscale_up" {
 data "ignition_systemd_unit" "nfs_backup_mount" {
   name    = "${substr(replace(local.hetzner.node.backup_mount, "/", "-"), 1, -1)}.mount"
   enabled = false
-  content = templatefile("${path.module}/systemd/fs.mount.tpl", {
+  content = templatefile("${path.module}/systemd/fs.mount.tftpl", {
     type     = "remote"
     network  = data.ignition_systemd_unit.wait_tailscale_up.name
     location = "${[for x in flatten(proxmox_virtual_environment_vm.data_provider[0].ipv4_addresses) : x if startswith(x, "192.168")][0]}:/mnt/data/${local.hetzner.node.name}"
@@ -101,7 +101,7 @@ data "ignition_systemd_unit" "nfs_backup_mount" {
 data "ignition_systemd_unit" "backup_rsync" {
   name    = "backup-rsync.service"
   enabled = false
-  content = templatefile("${path.module}/systemd/backup_rsync.service.tpl", {
+  content = templatefile("${path.module}/systemd/backup_rsync.service.tftpl", {
     dependency  = data.ignition_systemd_unit.nfs_backup_mount.name
     source      = data.ignition_filesystem.coreos_data_fs.path
     destination = local.hetzner.node.backup_mount
@@ -112,7 +112,7 @@ data "ignition_systemd_unit" "backup_rsync" {
 data "ignition_systemd_unit" "backup_rsync_timer" {
   name    = "${split(".", data.ignition_systemd_unit.backup_rsync.name)[0]}.timer"
   enabled = false
-  content = templatefile("${path.module}/systemd/service.timer.tpl", {
+  content = templatefile("${path.module}/systemd/service.timer.tftpl", {
     service  = data.ignition_systemd_unit.backup_rsync.name
     schedule = "*:0/30"
   })
@@ -121,7 +121,7 @@ data "ignition_systemd_unit" "backup_rsync_timer" {
 data "ignition_systemd_unit" "remote_node_extra_packages" {
   name    = "package-layering.service"
   enabled = true
-  content = templatefile("${path.module}/systemd/extra_packages.service.tpl", {
+  content = templatefile("${path.module}/systemd/extra_packages.service.tftpl", {
     packages = [
       "fish",
       "neovim",
@@ -133,7 +133,7 @@ data "ignition_systemd_unit" "remote_node_extra_packages" {
 data "ignition_systemd_unit" "remote_node_setup" {
   name    = "setup.service"
   enabled = true
-  content = templatefile("${path.module}/systemd/coreos_setup.service.tpl", {
+  content = templatefile("${path.module}/systemd/coreos_setup.service.tftpl", {
     package_install = data.ignition_systemd_unit.remote_node_extra_packages.name
     ethtool = replace(
       data.ignition_systemd_unit.tailscale_ethtool_config.name, "@", "@$(ip -o route get 8.8.8.8 | cut -f 5 -d ' ')"
