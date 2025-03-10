@@ -73,6 +73,7 @@ resource "proxmox_virtual_environment_file" "data_provider_config" {
       username       = local.user.name
       groups         = join(",", local.user.groups)
       ssh_public_key = local.user.ssh.public_key
+      nfs_shares     = [local.hetzner.node.name]
     })
 
     file_name = "data_provider.cloud-config.yaml"

@@ -95,3 +95,16 @@ data "vault_kv_secret_v2" "secret_ssh" {
     }
   }
 }
+
+data "vault_kv_secret_v2" "secret_tailscale" {
+  depends_on = [data.vault_generic_secret.kv_store]
+  mount      = local.vault.kv_store_path
+  name       = "tailscale"
+
+  lifecycle {
+    postcondition {
+      condition     = provider::assert::key("hetzner_client_secret", self.data)
+      error_message = "kv store does not contain tailscale hetzner auth key"
+    }
+  }
+}

@@ -43,8 +43,26 @@ data "hcloud_images" "available_images" {
   most_recent       = true
 }
 
-locals {
-  fedora_image = [for x in data.hcloud_images.available_images.images : x.id if x.os_flavor == "fedora" && x.rapid_deploy == true][0]
+data "ignition_config" "remote_node" {
+  disks       = [jsonencode(local.coreos_disk_layout)]
+  filesystems = [data.ignition_filesystem.coreos_data_fs.rendered]
+  users       = [data.ignition_user.user.rendered]
+  files = [
+    data.ignition_file.remote_node_hostname.rendered,
+    data.ignition_file.enable_zram0.rendered,
+    data.ignition_file.tailscale_sysctl_config.rendered,
+  ]
+  systemd = [
+    data.ignition_systemd_unit.tailscale_ethtool_config.rendered,
+    data.ignition_systemd_unit.docker.rendered,
+    data.ignition_systemd_unit.coreos_data_fs_mount.rendered,
+    data.ignition_systemd_unit.wait_tailscale_up.rendered,
+    data.ignition_systemd_unit.nfs_backup_mount.rendered,
+    data.ignition_systemd_unit.backup_rsync.rendered,
+    data.ignition_systemd_unit.backup_rsync_timer.rendered,
+    data.ignition_systemd_unit.remote_node_extra_packages.rendered,
+    data.ignition_systemd_unit.remote_node_setup.rendered,
+  ]
 }
 
 resource "hcloud_server" "remote_node" {
@@ -53,7 +71,7 @@ resource "hcloud_server" "remote_node" {
   location    = local.hetzner.node.location
 
   # Image is ignored, as we boot into rescue mode, but is a required field
-  image    = local.fedora_image
+  image    = [for x in data.hcloud_images.available_images.images : x.id if x.os_flavor == "fedora" && x.rapid_deploy == true][0]
   rescue   = "linux64"
   ssh_keys = [hcloud_ssh_key.primary_ssh_key.id]
 

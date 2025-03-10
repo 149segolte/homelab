@@ -1,0 +1,11 @@
+[Unit]
+Description=Ethtool configuration to use transport layer offloads
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/ethtool -K %i rx-udp-gro-forwarding on rx-gro-list off
+
+[Install]
+WantedBy=multi-user.target

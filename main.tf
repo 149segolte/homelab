@@ -57,7 +57,7 @@ locals {
     name          = "one49segolte"
     password      = random_password.password.result
     password_hash = random_password.password.bcrypt_hash
-    groups        = ["wheel", "sudo", "docker"]
+    groups        = ["wheel", "sudo"]
     ssh = {
       public_key  = data.vault_kv_secret_v2.secret_ssh.data["public_key"]
       private_key = data.vault_kv_secret_v2.secret_ssh.data["private_key"]
@@ -102,10 +102,14 @@ locals {
       poll_interval = "1000ms"
     }
     node = {
-      name     = "hetzner-remote-node"
-      type     = "cax11"
-      location = "hel1"
+      name         = "hetzner-remote-node"
+      type         = "cax11"
+      location     = "hel1"
+      backup_mount = "/var/mnt/backup"
     }
+  }
+  tailscale = {
+    hetzner_key = data.vault_kv_secret_v2.secret_tailscale.data["hetzner_client_secret"]
   }
 }
 
