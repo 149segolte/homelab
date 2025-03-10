@@ -20,6 +20,22 @@ data "ignition_file" "enable_zram0" {
   }
 }
 
+data "ignition_file" "allow_unprivileged_ports" {
+  path = "/etc/sysctl.d/40-unprivileged-ports.conf"
+  mode = 420
+  content {
+    content = "net.ipv4.ip_unprivileged_port_start=443\n"
+  }
+}
+
+data "ignition_file" "increase_udp_buffer_sizes" {
+  path = "/etc/sysctl.d/40-increase-udp-buffer-sizes.conf"
+  mode = 420
+  content {
+    content = "net.core.rmem_max=7500000\nnet.core.wmem_max=7500000\n"
+  }
+}
+
 data "ignition_file" "tailscale_sysctl_config" {
   path = "/etc/sysctl.d/99-tailscale.conf"
   mode = 420
@@ -144,7 +160,9 @@ data "ignition_systemd_unit" "remote_node_setup" {
       flags = ["--accept-dns=false", "--accept-routes", "--advertise-exit-node"]
     }
     commands = [
-      "/bin/systemctl enable --now podman.socket",
+      "/bin/loginctl enable-linger ${local.user.name}",
+      "/bin/systemctl enable podman.socket",
+      "/bin/systemctl --global enable podman.socket",
       "/bin/systemctl enable --now ${data.ignition_systemd_unit.nfs_backup_mount.name}",
       "/usr/bin/chown -R ${local.user.name}:${local.user.name} ${data.ignition_filesystem.coreos_data_fs.path}",
       "/usr/sbin/runuser -l ${local.user.name} -c 'rsync -avP ${local.hetzner.node.backup_mount}/ ${data.ignition_filesystem.coreos_data_fs.path}/'",

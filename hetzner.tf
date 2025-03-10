@@ -50,6 +50,8 @@ data "ignition_config" "remote_node" {
   files = [
     data.ignition_file.remote_node_hostname.rendered,
     data.ignition_file.enable_zram0.rendered,
+    data.ignition_file.allow_unprivileged_ports.rendered,
+    data.ignition_file.increase_udp_buffer_sizes.rendered,
     data.ignition_file.tailscale_sysctl_config.rendered,
   ]
   systemd = [
