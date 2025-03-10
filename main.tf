@@ -69,7 +69,14 @@ locals {
       checksum = jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.sha256
     }
     custom_alpine = {
-      url      = "https://github.com/149segolte/alpine-make-vm-image/releases/latest/download/custom_alpine-x86_64-bios-cloudinit.qcow2"
+      url = join("", [
+        "https://github.com/149segolte/alpine-make-vm-image/releases/download/",
+        distinct([
+          for x in split("\n", data.http.custom_alpine_build.response_body) : regexall("^.*(action/\\d*T\\d*Z)", x)[0][0]
+          if strcontains(x, "action/")
+        ])[0],
+        "/custom_alpine-x86_64-bios-cloudinit.qcow2"
+      ])
       checksum = "none"
     }
   }
@@ -135,6 +142,17 @@ data "http" "coreos_stable_aarch64_build" {
     postcondition {
       condition     = contains([200], self.status_code)
       error_message = "Could not get the CoreOS stable aarch64 meta.json"
+    }
+  }
+}
+
+data "http" "custom_alpine_build" {
+  url = "https://github.com/149segolte/alpine-make-vm-image/releases/latest"
+
+  lifecycle {
+    postcondition {
+      condition     = contains([200], self.status_code)
+      error_message = "Could not get the latest custom Alpine release"
     }
   }
 }
