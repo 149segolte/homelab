@@ -1,0 +1,46 @@
+[Unit]
+Description=${ description }
+Wants=${ setup_service }
+After=${ setup_service }
+
+[Container]
+ContainerName=${ name }
+AutoUpdate=registry
+Image=${ image }
+
+%{ if networks != null ~}
+%{ for network in networks ~}
+Network=${ network }.network
+%{ endfor ~}
+%{ endif ~}
+
+%{ if ports != null ~}
+%{ for port in ports ~}
+PublishPort=${ port }
+%{ endfor ~}
+%{ endif ~}
+
+%{ if volumes != null ~}
+%{ for volume in volumes ~}
+Volume=${ volume }
+%{ endfor ~}
+%{ endif ~}
+
+%{ if environment != null ~}
+Environment=${ join(" ", [for x in keys(environment): join("=", [x, environment[x]])]) }
+%{ endif ~}
+
+%{ if exec != null ~}
+Exec=${ join(" ", exec) }
+%{ endif ~}
+
+%{ if labels != null ~}
+Label=${ join(" ", [for x in keys(labels): join(" ", [x, labels[x]])]) }
+%{ endif ~}
+
+[Service]
+TimeoutStartSec=300
+Restart=always
+
+[Install]
+WantedBy=default.target

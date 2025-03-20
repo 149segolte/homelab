@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -e
+
+if [ -f /var/lib/coreos_setup.stamp ]; then
+  echo "Stamp file exists, skipping setup"
+  exit 0
+fi
+
+echo "Setting up CoreOS..."
+
+echo "Configure ethtool"
+systemctl enable --now ${ ethtool_service }
+
+echo "Configure tailscale"
+systemctl enable --now tailscaled.service
+/usr/bin/tailscale up --auth-key=${ tailscale.key }?ephemeral=true --advertise-tags=${ join(",", [for x in tailscale.tags: join("", ["tag:", x])]) } ${ join(" ", tailscale.flags) }
+
+echo "Configure NFS Backup"
+systemctl enable --now ${ nfs_backup_service }
+chown -R ${ username }:${ username } ${ coreos_data_fs }
+runuser -l ${ username } -c 'rsync -avP ${ backup_mount }/ ${ coreos_data_fs }/'
+systemctl enable --now ${ backup_rsync_timer }
+
+echo "Configure podman"
+systemctl enable podman.socket
+systemctl --global enable podman.socket
+runuser -l ${ username } -c 'podman image pull ${ join(" ", images) }'
+
+echo "Start container quadlets"
+loginctl enable-linger ${ username }
+
+touch /var/lib/coreos_setup.stamp

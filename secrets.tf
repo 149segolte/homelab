@@ -108,3 +108,24 @@ data "vault_kv_secret_v2" "secret_tailscale" {
     }
   }
 }
+
+data "vault_kv_secret_v2" "secret_cloudflare" {
+  depends_on = [data.vault_generic_secret.kv_store]
+  mount      = local.vault.kv_store_path
+  name       = "cloudflare"
+
+  lifecycle {
+    postcondition {
+      condition     = provider::assert::key("api_token", self.data)
+      error_message = "kv store does not contain cloudflare token"
+    }
+    postcondition {
+      condition     = provider::assert::key("email", self.data)
+      error_message = "kv store does not contain cloudflare account id"
+    }
+    postcondition {
+      condition     = provider::assert::key("tunnel_token", self.data)
+      error_message = "kv store does not contain cloudflare zone id"
+    }
+  }
+}

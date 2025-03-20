@@ -22,7 +22,7 @@ terraform {
     }
     ignition = {
       source  = "community-terraform-providers/ignition"
-      version = "2.3.5"
+      version = "2.4.1"
     }
     random = {
       source  = "hashicorp/random"
@@ -52,6 +52,11 @@ locals {
   vault = {
     address       = "https://localhost:8200"
     kv_store_path = "homelab/terraform"
+  }
+  domain = {
+    base   = "149segolte.dev"
+    remote = "remote.149segolte.dev"
+    lab    = "lab.149segolte.dev"
   }
   user = {
     name          = "one49segolte"
@@ -101,6 +106,7 @@ locals {
       token         = data.vault_kv_secret_v2.secret_hetzner.data["token"]
       poll_interval = "1000ms"
     }
+    timezone = "Europe/Berlin"
     node = {
       name         = "hetzner-remote-node"
       type         = "cax11"
@@ -110,6 +116,16 @@ locals {
   }
   tailscale = {
     hetzner_key = data.vault_kv_secret_v2.secret_tailscale.data["hetzner_client_secret"]
+  }
+  cloudflare = {
+    email        = data.vault_kv_secret_v2.secret_cloudflare.data["email"]
+    api_token    = data.vault_kv_secret_v2.secret_cloudflare.data["api_token"]
+    tunnel_token = data.vault_kv_secret_v2.secret_cloudflare.data["tunnel_token"]
+    acme = {
+      # url   = "https://acme-v02.api.letsencrypt.org/directory"
+      url   = "https://acme-staging-v02.api.letsencrypt.org/directory"
+      email = "admin@${local.domain.base}"
+    }
   }
 }
 
