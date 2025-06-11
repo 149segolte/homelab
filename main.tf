@@ -62,8 +62,8 @@ locals {
   }
   domain = {
     base   = "149segolte.dev"
-    remote = "remote.149segolte.dev"
-    lab    = "lab.149segolte.dev"
+    remote = "pub.149segolte.dev"
+    local  = "pri.149segolte.dev"
   }
   user = {
     name          = "one49segolte"
