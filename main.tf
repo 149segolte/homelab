@@ -8,13 +8,13 @@ terraform {
       source  = "hashicorp/vault"
       version = "4.6.0"
     }
-    proxmox = {
-      source  = "bpg/proxmox"
-      version = "0.73.0"
-    }
     assert = {
       source  = "hashicorp/assert"
       version = "0.15.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "3.7.1"
     }
     hcloud = {
       source  = "hetznercloud/hcloud"
@@ -24,9 +24,9 @@ terraform {
       source  = "community-terraform-providers/ignition"
       version = "2.4.1"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "3.7.1"
+    proxmox = {
+      source  = "bpg/proxmox"
+      version = "0.73.0"
     }
     packer = {
       source  = "toowoxx/packer"
