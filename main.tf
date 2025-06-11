@@ -125,9 +125,8 @@ locals {
     hetzner_key = data.vault_kv_secret_v2.secret_tailscale.data["hetzner_client_secret"]
   }
   cloudflare = {
-    email        = data.vault_kv_secret_v2.secret_cloudflare.data["email"]
-    api_token    = data.vault_kv_secret_v2.secret_cloudflare.data["api_token"]
-    tunnel_token = data.vault_kv_secret_v2.secret_cloudflare.data["tunnel_token"]
+    email     = data.vault_kv_secret_v2.secret_cloudflare.data["email"]
+    api_token = data.vault_kv_secret_v2.secret_cloudflare.data["api_token"]
     acme = {
       # url   = "https://acme-v02.api.letsencrypt.org/directory"
       url   = "https://acme-staging-v02.api.letsencrypt.org/directory"
