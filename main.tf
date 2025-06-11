@@ -28,8 +28,15 @@ terraform {
       source  = "hashicorp/random"
       version = "3.7.1"
     }
+    packer = {
+      source  = "toowoxx/packer"
+      version = "0.16.1"
+    }
   }
 }
+
+provider "packer" {}
+data "packer_version" "ver" {}
 
 variable "vault_username" {
   description = "The username for the local vault user"

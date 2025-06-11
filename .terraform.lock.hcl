@@ -147,3 +147,21 @@ provider "registry.terraform.io/hetznercloud/hcloud" {
     "zh:e2c1812f2e1f9fac17c7551d4ab0efb713b6d751087c18b84b8acd542f587459",
   ]
 }
+
+provider "registry.terraform.io/toowoxx/packer" {
+  version     = "0.16.1"
+  constraints = "0.16.1"
+  hashes = [
+    "h1:GozDU98dCtozRJkiN1uheuEc7Y8bGIzRUUCsdNV9KGY=",
+    "zh:1fcfc8ed78e6e5eaf34ee1c0f954de27891a832ad6decdbe4f629c1b8d69f549",
+    "zh:6f049779e1e9569934dcd133bdfc9218cfde7691edc483573d35b2ad15da68d9",
+    "zh:99bc4b7fdad47302bc5357d74c9fdee2976ebad74e609679c8da3aa49fbade85",
+    "zh:9fe76c64f565bf8b4a88f769a9e04cb6eea3444bbf177efe72dc6b8787710a02",
+    "zh:a4c1ff0bb9e5e233b7648e5d94d38d3255d8ba0291ad1ce608fb0ef80b4f7d5b",
+    "zh:c1f6ccf6603c91c1fef6ad5b63267bbe45787972b598fb99ef75dc4990f38049",
+    "zh:c54698a8a8accf64fbcca54dc5aa3d153a0e7a62aeeb67224db0bf703f99749b",
+    "zh:f2a01fadffeccef1c53328d28175432c1d706ea3a527a058ab5a7155157ab4a0",
+    "zh:fb80649d18d13b9e5b4109917b762762224280bdeaa0a7a089fcefa52cee5274",
+    "zh:fb85cb079a50c4d28647be55ddc81756598d61eda511faad09deaed3e33b030c",
+  ]
+}
