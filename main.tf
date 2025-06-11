@@ -77,8 +77,8 @@ locals {
   }
   os_releases = {
     coreos = {
-      url      = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${jsondecode(data.http.coreos_stable_builds.response_body).builds[0].id}/aarch64/${jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.path}"
-      checksum = jsondecode(data.http.coreos_stable_aarch64_build.response_body).images.metal.sha256
+      url      = jsondecode(data.http.coreos_stable_builds.response_body).architectures.aarch64.artifacts.hetzner.formats["raw.xz"].disk.location
+      checksum = jsondecode(data.http.coreos_stable_builds.response_body).architectures.aarch64.artifacts.hetzner.formats["raw.xz"].disk.sha256
     }
     custom_alpine = {
       url = join("", [
@@ -146,7 +146,7 @@ resource "random_password" "password" {
 }
 
 data "http" "coreos_stable_builds" {
-  url = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/builds.json"
+  url = "https://builds.coreos.fedoraproject.org/streams/stable.json"
   request_headers = {
     Accept = "application/json"
   }
@@ -154,28 +154,13 @@ data "http" "coreos_stable_builds" {
   lifecycle {
     postcondition {
       condition     = contains([200], self.status_code)
-      error_message = "Could not get the CoreOS stable builds.json"
-    }
-  }
-}
-
-data "http" "coreos_stable_aarch64_build" {
-  url = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${jsondecode(data.http.coreos_stable_builds.response_body).builds[0].id}/aarch64/meta.json"
-  request_headers = {
-    Accept = "application/json"
-  }
-
-  lifecycle {
-    postcondition {
-      condition     = contains([200], self.status_code)
-      error_message = "Could not get the CoreOS stable aarch64 meta.json"
+      error_message = "Could not get the CoreOS stable builds"
     }
   }
 }
 
 data "http" "custom_alpine_build" {
   url = "https://github.com/149segolte/alpine-make-vm-image/releases/latest"
-
   lifecycle {
     postcondition {
       condition     = contains([200], self.status_code)
