@@ -117,7 +117,7 @@ locals {
     node = {
       name         = "hetzner-remote-node"
       type         = "cax11"
-      location     = "hel1"
+      location     = "fsn1"
       backup_mount = "/var/mnt/backup"
     }
   }
