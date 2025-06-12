@@ -41,91 +41,40 @@ data "vault_generic_secret" "kv_store" {
 #   value = nonsensitive(data.vault_generic_secret.kv_store.data)
 # }
 
-data "vault_kv_secret_v2" "secret_proxmox" {
+data "vault_kv_secret_v2" "tokens" {
   depends_on = [data.vault_generic_secret.kv_store]
   mount      = local.vault.kv_store_path
-  name       = "proxmox"
+  name       = "tokens"
 
   lifecycle {
     postcondition {
-      condition     = provider::assert::key("username", self.data)
-      error_message = "kv store does not contain proxmox username"
+      condition     = provider::assert::key("proxmox_api", self.data)
+      error_message = "kv store does not contain proxmox api token"
     }
     postcondition {
-      condition     = provider::assert::key("password", self.data)
-      error_message = "kv store does not contain proxmox password"
+      condition     = provider::assert::key("hetzner_api", self.data)
+      error_message = "kv store does not contain hetzner api token"
+    }
+    postcondition {
+      condition     = provider::assert::key("cloudflare_api", self.data)
+      error_message = "kv store does not contain cloudflare api token"
+    }
+    postcondition {
+      condition     = provider::assert::key("tailscale_client_secret", self.data)
+      error_message = "kv store does not contain tailscale client secret"
     }
   }
 }
 
-# output "proxmox_credentials" {
-#   value = nonsensitive(data.vault_kv_secret_v2.secret_proxmox.data)
-# }
-
-data "vault_kv_secret_v2" "secret_hetzner" {
+data "vault_kv_secret_v2" "variables" {
   depends_on = [data.vault_generic_secret.kv_store]
   mount      = local.vault.kv_store_path
-  name       = "hetzner"
+  name       = "variables"
 
   lifecycle {
     postcondition {
-      condition     = provider::assert::key("token", self.data)
-      error_message = "kv store does not contain hetzner token"
-    }
-  }
-}
-
-# output "hetzner_token" {
-#   value = nonsensitive(data.vault_kv_secret_v2.secret_hetzner.data)
-# }
-
-data "vault_kv_secret_v2" "secret_ssh" {
-  depends_on = [data.vault_generic_secret.kv_store]
-  mount      = local.vault.kv_store_path
-  name       = "ssh"
-
-  lifecycle {
-    postcondition {
-      condition     = provider::assert::key("public_key", self.data)
-      error_message = "kv store does not contain ssh public key"
-    }
-    postcondition {
-      condition     = provider::assert::key("private_key", self.data)
-      error_message = "kv store does not contain ssh private key"
-    }
-  }
-}
-
-data "vault_kv_secret_v2" "secret_tailscale" {
-  depends_on = [data.vault_generic_secret.kv_store]
-  mount      = local.vault.kv_store_path
-  name       = "tailscale"
-
-  lifecycle {
-    postcondition {
-      condition     = provider::assert::key("hetzner_client_secret", self.data)
-      error_message = "kv store does not contain tailscale hetzner auth key"
-    }
-  }
-}
-
-data "vault_kv_secret_v2" "secret_cloudflare" {
-  depends_on = [data.vault_generic_secret.kv_store]
-  mount      = local.vault.kv_store_path
-  name       = "cloudflare"
-
-  lifecycle {
-    postcondition {
-      condition     = provider::assert::key("api_token", self.data)
-      error_message = "kv store does not contain cloudflare token"
-    }
-    postcondition {
-      condition     = provider::assert::key("email", self.data)
-      error_message = "kv store does not contain cloudflare account id"
-    }
-    postcondition {
-      condition     = provider::assert::key("tunnel_token", self.data)
-      error_message = "kv store does not contain cloudflare zone id"
+      condition     = provider::assert::key("cloudflare_email", self.data)
+      error_message = "kv store does not contain cloudflare email"
     }
   }
 }

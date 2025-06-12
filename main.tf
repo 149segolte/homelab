@@ -71,8 +71,8 @@ locals {
     password_hash = random_password.password.bcrypt_hash
     groups        = ["wheel", "sudo"]
     ssh = {
-      public_key  = data.vault_kv_secret_v2.secret_ssh.data["public_key"]
-      private_key = data.vault_kv_secret_v2.secret_ssh.data["private_key"]
+      public_key  = "" # Mark for removal
+      private_key = "" # Mark for removal
     }
   }
   os_releases = {
@@ -81,21 +81,14 @@ locals {
       checksum = jsondecode(data.http.coreos_stable_builds.response_body).architectures.aarch64.artifacts.hetzner.formats["raw.xz"].disk.sha256
     }
     custom_alpine = {
-      url = join("", [
-        "https://github.com/149segolte/alpine-make-vm-image/releases/download/",
-        distinct([
-          for x in split("\n", data.http.custom_alpine_build.response_body) : regexall("^.*(action/\\d*T\\d*Z)", x)[0][0]
-          if strcontains(x, "action/")
-        ])[0],
-        "/custom_alpine-x86_64-bios-cloudinit.qcow2"
-      ])
-      checksum = "none"
+      url      = "https://example.com" # Mark for removal
+      checksum = ""                    # Mark for removal
     }
   }
   proxmox = {
     credentials = {
-      username = data.vault_kv_secret_v2.secret_proxmox.data["username"]
-      password = data.vault_kv_secret_v2.secret_proxmox.data["password"]
+      username = " " # Mark for removal
+      password = " " # Mark for removal
     }
     node = {
       name      = "novasking"
@@ -104,13 +97,13 @@ locals {
       # endpoint  = "https://192.168.0.51:8006"
     }
     data_provider = {
-      name    = "dataprovider"
+      name    = "" # Mark for removal
       restore = false
     }
   }
   hetzner = {
     client = {
-      token         = data.vault_kv_secret_v2.secret_hetzner.data["token"]
+      token         = data.vault_kv_secret_v2.tokens.data["hetzner_api"]
       poll_interval = "1000ms"
     }
     timezone = "Europe/Berlin"
@@ -118,15 +111,15 @@ locals {
       name         = "hetzner-remote-node"
       type         = "cax11"
       location     = "fsn1"
-      backup_mount = "/var/mnt/backup"
+      backup_mount = "" # Mark for removal
     }
   }
   tailscale = {
-    hetzner_key = data.vault_kv_secret_v2.secret_tailscale.data["hetzner_client_secret"]
+    hetzner_key = data.vault_kv_secret_v2.tokens.data["tailscale_client_secret"]
   }
   cloudflare = {
-    email     = data.vault_kv_secret_v2.secret_cloudflare.data["email"]
-    api_token = data.vault_kv_secret_v2.secret_cloudflare.data["api_token"]
+    email     = data.vault_kv_secret_v2.variables.data["cloudflare_email"]
+    api_token = data.vault_kv_secret_v2.tokens.data["cloudflare_api"]
     acme = {
       # url   = "https://acme-v02.api.letsencrypt.org/directory"
       url   = "https://acme-staging-v02.api.letsencrypt.org/directory"
@@ -154,16 +147,6 @@ data "http" "coreos_stable_builds" {
     postcondition {
       condition     = contains([200], self.status_code)
       error_message = "Could not get the CoreOS stable builds"
-    }
-  }
-}
-
-data "http" "custom_alpine_build" {
-  url = "https://github.com/149segolte/alpine-make-vm-image/releases/latest"
-  lifecycle {
-    postcondition {
-      condition     = contains([200], self.status_code)
-      error_message = "Could not get the latest custom Alpine release"
     }
   }
 }
