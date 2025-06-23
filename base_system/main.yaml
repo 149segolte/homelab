@@ -162,7 +162,7 @@
       - name: Validate /etc/network/interfaces for expected configuration
         ansible.builtin.fail:
           msg: "/etc/network/interfaces does not contain expected configuration."
-        when: lookup('ansible.builtin.template', 'files/' + network_type + '.j2') | trim != interfaces_file['content'] | b64decode | trim
+        when: lookup('ansible.builtin.template', 'files/interfaces.j2') | trim != interfaces_file['content'] | b64decode | trim
 
       - name: Fetch hostapd configuration
         ansible.builtin.slurp:
