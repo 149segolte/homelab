@@ -1,0 +1,50 @@
+# /root/hostapd.conf
+
+interface=wlan_ap # Match with `/etc/network/interfaces`
+bridge=vmbr1 # Match with `/etc/network/interfaces`
+driver=nl80211
+ssid={{ ap_mode_ssid }}
+
+## WPA2/3-Personal
+wpa=2
+wpa_passphrase={{ ap_mode_password }}
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+
+## IEEE 802.11 (a = 5GHz, b = 2.4GHz)
+hw_mode={{ ap_mode }}
+max_num_sta=24 # Max devices = 24
+macaddr_acl=0
+auth_algs=1
+#ignore_broadcast_ssid=1
+
+## DFS
+country_code=US # Update DFS country
+ieee80211d=1
+ieee80211h=1
+
+## IEEE 802.11n
+ieee80211n=1
+require_ht=1
+ht_capab=[RXLDPC][HT20][HT40+][SHORT-GI-20][SHORT-GI-40][TX-STBC][RX-STBC1][MAX-AMSDU-7935][DSSS_CCK-40] # Update using `iw list`
+
+{% if (ap_mode == "b") or (ap_mode == "g") %}
+## 2.4GHz channel
+channel=7
+
+{% endif %}
+{% if ap_mode == "a" %}
+## 5GHz channel
+channel=149
+vht_oper_chwidth=1
+vht_oper_centr_freq_seg0_idx=155
+
+## IEEE 802.11ac
+ieee80211ac=1
+require_vht=1
+vht_capab=[MAX-MPDU-11454][RXLDPC][SHORT-GI-80][TX-STBC-2BY1][VHT160] # Update using `iw list`
+
+{% endif %}
+## Extra
+#wmm_enabled=1
+dhcp_server=172.19.149.1 # Match to PFSense IP on LAN

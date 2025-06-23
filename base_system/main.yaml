@@ -1,0 +1,180 @@
+- name: Local homelab setup validation
+  hosts: runner
+  vars_files:
+    - vars.yaml
+
+  tasks:
+    - name: Check Terraform version
+      ansible.builtin.command: terraform --version
+      register: terraform_version
+      changed_when: false
+
+    - name: Report if invalid Terraform version
+      ansible.builtin.fail:
+        msg: "Require Terraform >= v1.11.0, but found {{ terraform_version.stdout | regex_search('^Terraform v\\S+') }}"
+      when: terraform_version.stdout | split('\n') | first | regex_replace('^Terraform v') is version('1.11.0', '<')
+
+    - name: Check Vault version
+      ansible.builtin.command: vault --version
+      register: vault_version
+      changed_when: false
+
+    - name: Report if invalid Vault version
+      ansible.builtin.fail:
+        msg: "Require Vault >= v1.15.0, but found {{ vault_version.stdout | regex_replace('^Vault v(\\S+).*', '\\1') }}"
+      when: vault_version.stdout | regex_replace('^Vault v(\\S+).*', '\\1') is version('1.15.0', '<')
+
+    - name: Check Vault server status
+      ansible.builtin.uri:
+        url: "{{ vault_url }}/v1/sys/health"
+        method: GET
+        validate_certs: false
+        body_format: json
+      register: vault_health
+
+    - name: Report Vault server status
+      ansible.builtin.fail:
+        msg: "Vault server is either uninitialized, sealed or unreachable."
+      when: vault_health.status != 200 or vault_health.json.initialized is not true or vault_health.json.sealed is true
+
+- name: Proxmox homelab setup validation
+  hosts: target
+  vars_files:
+    - vars.yaml
+
+  tasks:
+    - block:
+      - name: Manual check reminder for BIOS settings
+        ansible.builtin.debug:
+          msg: >
+            Please verify that your BIOS is set as follows:
+            • Virtualization enabled
+            • IOMMU enabled (if required)
+            • Integrated graphics disabled (if using dGPU passthrough with internal display)
+            • Boot password set (optional)
+
+      - name: Check required packages
+        ansible.builtin.shell: |
+          missing=""
+          for pkg in {{ target_packages }}; do
+            if ! dpkg -l $pkg > /dev/null 2>&1; then
+              missing="$missing $pkg"
+            fi
+          done
+          echo $missing
+        register: pkg_check
+        changed_when: false
+
+      - name: Report missing packages if any
+        ansible.builtin.fail:
+          msg: "Missing the following packages: {{ pkg_check.stdout | trim }}"
+        when: pkg_check.stdout | trim != ""
+
+      - name: Validate /etc/systemd/logind.conf for HandleLidSwitch settings
+        ansible.builtin.shell: grep -E "^\s*HandleLidSwitch(ExternalPower)?\s*=\s*ignore" /etc/systemd/logind.conf || true
+        register: logind_conf
+        changed_when: false
+
+      - name: Report if HandleLidSwitch is not set to ignore
+        ansible.builtin.fail:
+          msg: "HandleLidSwitch and HandleLidSwitchExternalPower are not set to ignore in /etc/systemd/logind.conf. Please update logind configuration."
+        when: logind_conf.stdout | trim | split('\n') | unique | length < 2
+
+      - name: Validate /etc/modules for required vfio entries
+        ansible.builtin.shell: grep -E "^\s*vfio(_iommu_type1|_pci|_virqfd)?" /etc/modules || true
+        register: modules_conf
+        changed_when: false
+
+      - name: Report if vfio modules are missing in /etc/modules
+        ansible.builtin.fail:
+          msg: "Some or all vfio modules (vfio, vfio_iommu_type1, vfio_pci, vfio_virqfd) are missing in /etc/modules."
+        when: modules_conf.stdout | trim | split('\n') | unique | length < 4
+
+      - name: Ensure /etc/modprobe.d/vfio.conf exists
+        ansible.builtin.stat:
+          path: /etc/modprobe.d/vfio.conf
+        register: vfio_conf_file
+
+      - name: Check /etc/modprobe.d/vfio.conf for blacklist directives
+        ansible.builtin.shell: grep -E "^\s*blacklist\s+(nouveau|nvidia\*)" /etc/modprobe.d/vfio.conf || true
+        register: vfio_conf_blacklist
+        changed_when: false
+        when: vfio_conf_file.stat.exists
+
+      - name: Check /etc/modprobe.d/vfio.conf for vfio-pci options
+        ansible.builtin.shell: grep -E "^\s*options\s+vfio-pci\s+ids={{ vfio_device_ids }}\s+disable_vga=1" /etc/modprobe.d/vfio.conf || true
+        register: vfio_conf_options
+        changed_when: false
+        when: vfio_conf_file.stat.exists
+
+      - name: Report if expected entries not found in vfio.conf
+        ansible.builtin.fail:
+          msg: "Expected options and blacklists not found in /etc/modprobe.d/vfio.conf."
+        when: vfio_conf_file.stat.exists and (vfio_conf_blacklist.stdout | trim | split('\n') | unique | length < 2 or vfio_conf_options.stdout | trim == "")
+
+      - name: Validate /etc/default/grub for intel_iommu=on
+        ansible.builtin.shell: grep -E "^[^#]*intel_iommu=on" /etc/default/grub || true
+        register: grub_conf
+        changed_when: false
+
+      - name: Report if intel_iommu=on is not set in /etc/default/grub
+        ansible.builtin.fail:
+          msg: "intel_iommu=on not set in /etc/default/grub. Please update GRUB configuration."
+        when: grub_conf.stdout | trim == ""
+
+      - name: Validate extra disk mount configuration in /etc/fstab
+        ansible.builtin.shell: grep -E "^[^#]*LABEL=({{ extra_disk_labels | split | join('|') }})" /etc/fstab || true
+        register: fstab_conf
+        changed_when: false
+        when: extra_disk_labels is defined
+
+      - name: Report if extra disk mount configuration is missing in /etc/fstab
+        ansible.builtin.fail:
+          msg: "Extra disk mount configuration not found in /etc/fstab."
+        when: extra_disk_labels is defined and fstab_conf.stdout | trim | split('\n') | unique | length < extra_disk_labels | split | length
+
+      - name: Fetch hostname configuration
+        ansible.builtin.command: hostnamectl status --static
+        register: hostname_status
+        changed_when: false
+
+      - name: Report if hostname mismatch
+        ansible.builtin.fail:
+          msg: "Current hostname: {{ hostname_status.stdout }} != {{ hostname }}"
+        when: hostname_status.stdout != hostname
+
+      - name: Validate dns resolution
+        ansible.builtin.shell: grep -E "^\s*nameserver\s+({{ dns_servers | split | join('|') }})" /etc/resolv.conf || true
+        register: dns_servers_check
+        changed_when: false
+        when: dns_servers is defined
+
+      - name: Report if DNS servers missing in /etc/resolv.conf
+        ansible.builtin.fail:
+          msg: "Configured servers not found in /etc/resolv.conf."
+        when: dns_servers is defined and dns_servers_check.stdout | trim | split('\n') | unique | length < dns_servers | split | length
+
+      - name: Fetch network interfaces
+        ansible.builtin.slurp:
+          src: /etc/network/interfaces
+        register: interfaces_file
+
+      - name: Validate /etc/network/interfaces for expected configuration
+        ansible.builtin.fail:
+          msg: "/etc/network/interfaces does not contain expected configuration."
+        when: lookup('ansible.builtin.template', 'files/' + network_type + '.j2') | trim != interfaces_file['content'] | b64decode | trim
+
+      - name: Fetch hostapd configuration
+        ansible.builtin.slurp:
+          src: /root/hostapd.conf
+        register: hostapd_file
+
+      - name: Validate /root/hostapd.conf for expected configuration
+        ansible.builtin.fail:
+          msg: "/root/hostapd.conf does not contain expected configuration."
+        when: lookup('ansible.builtin.template', 'files/hostapd.conf.j2') | trim != hostapd_file['content'] | b64decode | trim
+
+    - name: Invalid platform
+      ansible.builtin.fail:
+        msg: "Did not detect a debian distribution for target machine."
+      when: ansible_facts['distribution'] != "Debian"
