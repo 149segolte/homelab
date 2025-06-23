@@ -76,5 +76,9 @@ data "vault_kv_secret_v2" "variables" {
       condition     = provider::assert::key("cloudflare_email", self.data)
       error_message = "kv store does not contain cloudflare email"
     }
+    postcondition {
+      condition     = provider::assert::key("ssh_public_key", self.data)
+      error_message = "kv store does not contain ssh public key"
+    }
   }
 }

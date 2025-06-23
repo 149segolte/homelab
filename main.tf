@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/random"
       version = "3.7.1"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "4.1.0"
+    }
     hcloud = {
       source  = "hetznercloud/hcloud"
       version = "1.50.0"
@@ -39,20 +43,30 @@ provider "packer" {}
 data "packer_version" "ver" {}
 
 variable "vault_username" {
-  description = "The username for the local vault user"
+  description = "Username for the vault server user"
   type        = string
+  nullable    = false
 }
 
 variable "vault_password" {
-  description = "The password for the local vault user"
+  description = "Password for the vault server user"
   type        = string
   sensitive   = true
+  nullable    = false
 }
 
 variable "vault_cert" {
-  description = "The path to the vault certificate"
+  description = "Path to the vault server certificate"
   type        = string
   sensitive   = true
+  nullable    = false
+}
+
+variable "hetzner_data_restore" {
+  description = "Flag for disabling/removing Hetzner resources to allow data restore"
+  type        = bool
+  nullable    = false
+  default     = false
 }
 
 locals {
@@ -60,63 +74,54 @@ locals {
     address       = "https://localhost:8200"
     kv_store_path = "homelab/terraform"
   }
+
   domain = {
     base   = "149segolte.dev"
     remote = "pub.149segolte.dev"
     local  = "pri.149segolte.dev"
   }
+
   user = {
-    name          = "one49segolte"
-    password      = random_password.password.result
-    password_hash = random_password.password.bcrypt_hash
-    groups        = ["wheel", "sudo"]
-    ssh = {
-      public_key  = "" # Mark for removal
-      private_key = "" # Mark for removal
+    name    = "one49segolte"
+    groups  = ["wheel", "sudo"]
+    ssh_key = data.vault_kv_secret_v2.variables.data["ssh_public_key"]
+    password = {
+      value = random_password.password.result
+      hash  = random_password.password.bcrypt_hash
     }
   }
-  os_releases = {
+
+  images = {
     coreos = {
       url      = jsondecode(data.http.coreos_stable_builds.response_body).architectures.aarch64.artifacts.hetzner.formats["raw.xz"].disk.location
       checksum = jsondecode(data.http.coreos_stable_builds.response_body).architectures.aarch64.artifacts.hetzner.formats["raw.xz"].disk.sha256
     }
-    custom_alpine = {
-      url      = "https://example.com" # Mark for removal
-      checksum = ""                    # Mark for removal
-    }
   }
+
   proxmox = {
-    credentials = {
-      username = " " # Mark for removal
-      password = " " # Mark for removal
-    }
+    token = data.vault_kv_secret_v2.tokens.data["proxmox_api"]
     node = {
       name      = "novasking"
       vm_bridge = "vmbr2"
       endpoint  = "https://novasking.proxmox.arpa:8006"
       # endpoint  = "https://192.168.0.51:8006"
     }
-    data_provider = {
-      name    = "" # Mark for removal
-      restore = false
-    }
   }
+
   hetzner = {
     client = {
       token         = data.vault_kv_secret_v2.tokens.data["hetzner_api"]
       poll_interval = "1000ms"
     }
+    restore  = var.hetzner_data_restore
     timezone = "Europe/Berlin"
+    location = "fsn1"
     node = {
-      name         = "hetzner-remote-node"
-      type         = "cax11"
-      location     = "fsn1"
-      backup_mount = "" # Mark for removal
+      name = "homelab-remote"
+      type = "cax11"
     }
   }
-  tailscale = {
-    hetzner_key = data.vault_kv_secret_v2.tokens.data["tailscale_client_secret"]
-  }
+
   cloudflare = {
     email     = data.vault_kv_secret_v2.variables.data["cloudflare_email"]
     api_token = data.vault_kv_secret_v2.tokens.data["cloudflare_api"]

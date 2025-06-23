@@ -1,18 +1,10 @@
 provider "proxmox" {
-  endpoint = local.proxmox.node.endpoint
-  username = join("@", [local.proxmox.credentials.username, "pam"])
-  password = local.proxmox.credentials.password
+  endpoint      = local.proxmox.node.endpoint
+  token         = local.proxmox.token
+  random_vm_ids = false
 
   # because self-signed TLS certificate is in use
   insecure = true
-
-  ssh {
-    username = local.proxmox.credentials.username
-    password = local.proxmox.credentials.password
-    agent    = false
-  }
-
-  random_vm_ids = false
 }
 
 data "proxmox_virtual_environment_nodes" "available_nodes" {

@@ -1,6 +1,6 @@
 data "ignition_user" "user" {
   name                = local.user.name
-  ssh_authorized_keys = [local.user.ssh.public_key]
+  ssh_authorized_keys = [local.user.ssh_key]
   groups              = local.user.groups
 }
 
