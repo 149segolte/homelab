@@ -37,18 +37,13 @@ resource "hcloud_firewall" "restrict-access" {
   }
 }
 
-data "hcloud_images" "available_images" {
-  with_architecture = ["arm"]
+data "hcloud_image" "coreos" {
+  with_architecture = "arm"
   with_status       = ["available"]
   with_selector     = "used=homelab"
   most_recent       = true
 
-  lifecycle {
-    postcondition {
-      condition     = length(self.images) > 0
-      error_message = "No images available in the hetzner environment"
-    }
-  }
+  depends_on = [packer_image.coreos_hetzner]
 }
 
 resource "hcloud_server" "remote_node" {
@@ -56,7 +51,7 @@ resource "hcloud_server" "remote_node" {
   server_type = local.hetzner.node.type
   location    = local.hetzner.node.location
 
-  image     = data.hcloud_images.available_images.images[0].id
+  image     = data.hcloud_image.coreos.id
   ssh_keys  = [hcloud_ssh_key.primary_ssh_key.id]
   user_data = data.butane_config.remote_node.ignition
 

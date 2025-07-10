@@ -39,9 +39,6 @@ terraform {
   }
 }
 
-provider "packer" {}
-data "packer_version" "ver" {}
-
 variable "vault_username" {
   description = "Username for the vault server user"
   type        = string
