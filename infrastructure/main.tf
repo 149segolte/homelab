@@ -6,23 +6,23 @@ terraform {
   required_providers {
     vault = {
       source  = "hashicorp/vault"
-      version = "4.6.0"
+      version = "~> 5.0"
     }
     assert = {
       source  = "hashicorp/assert"
-      version = "0.15.0"
+      version = "~> 0.15.0"
     }
     random = {
       source  = "hashicorp/random"
-      version = "3.7.1"
+      version = "~> 3.7"
     }
     tls = {
       source  = "hashicorp/tls"
-      version = "4.1.0"
+      version = "~> 4.1"
     }
     hcloud = {
       source  = "hetznercloud/hcloud"
-      version = "1.50.0"
+      version = "~> 1.50"
     }
     ignition = {
       source  = "community-terraform-providers/ignition"
@@ -30,11 +30,11 @@ terraform {
     }
     proxmox = {
       source  = "bpg/proxmox"
-      version = "0.73.0"
+      version = "~> 0.73.0"
     }
     packer = {
       source  = "toowoxx/packer"
-      version = "0.16.1"
+      version = "~> 0.16.1"
     }
   }
 }
