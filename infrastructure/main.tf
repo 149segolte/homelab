@@ -24,9 +24,9 @@ terraform {
       source  = "hetznercloud/hcloud"
       version = "~> 1.50"
     }
-    ignition = {
-      source  = "community-terraform-providers/ignition"
-      version = "2.4.1"
+    butane = {
+      source  = "KeisukeYamashita/butane"
+      version = "~> 0.1.3"
     }
     proxmox = {
       source  = "bpg/proxmox"
@@ -84,6 +84,7 @@ locals {
   user = {
     name    = "one49segolte"
     groups  = ["wheel", "sudo"]
+    uid     = 1000
     ssh_key = data.vault_kv_secret_v2.variables.data["ssh_public_key"]
     password = {
       value = random_password.password.result
@@ -130,6 +131,12 @@ locals {
       url   = "https://acme-staging-v02.api.letsencrypt.org/directory"
       email = "admin@${local.domain.base}"
     }
+  }
+
+  quay = {
+    base     = "quay.io/149segolte"
+    username = data.vault_kv_secret_v2.variables.data["quay_io_packer"]
+    password = data.vault_kv_secret_v2.tokens.data["quay_io_packer"]
   }
 }
 

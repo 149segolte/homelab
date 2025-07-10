@@ -58,7 +58,7 @@ resource "hcloud_server" "remote_node" {
 
   image     = data.hcloud_images.available_images.images[0].id
   ssh_keys  = [hcloud_ssh_key.primary_ssh_key.id]
-  user_data = data.ignition_config.remote_node.rendered
+  user_data = data.butane_config.remote_node.ignition
 
   public_net {
     ipv4_enabled = true

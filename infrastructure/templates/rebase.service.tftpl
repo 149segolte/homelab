@@ -1,0 +1,16 @@
+[Unit]
+Description=Rebase to OCI registry
+ConditionFirstBoot=true
+After=network-online.target
+After=ignition-firstboot-complete.service
+
+[Install]
+WantedBy=default.target
+WantedBy=multi-user.target  
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sleep 30
+ExecStartPre=systemctl disable zincati
+ExecStart=rpm-ostree rebase --reboot ostree-unverified-registry:${ image_url }

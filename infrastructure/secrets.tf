@@ -63,6 +63,10 @@ data "vault_kv_secret_v2" "tokens" {
       condition     = provider::assert::key("tailscale_client_secret", self.data)
       error_message = "kv store does not contain tailscale client secret"
     }
+    postcondition {
+      condition     = provider::assert::key("quay_io_packer", self.data)
+      error_message = "kv store does not contain quay.io packer token"
+    }
   }
 }
 
@@ -79,6 +83,10 @@ data "vault_kv_secret_v2" "variables" {
     postcondition {
       condition     = provider::assert::key("ssh_public_key", self.data)
       error_message = "kv store does not contain ssh public key"
+    }
+    postcondition {
+      condition     = provider::assert::key("quay_io_packer", self.data)
+      error_message = "kv store does not contain quay.io packer username"
     }
   }
 }
