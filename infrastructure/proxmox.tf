@@ -74,6 +74,26 @@ resource "proxmox_virtual_environment_file" "data_provider_config" {
   }
 }
 
+resource "proxmox_virtual_environment_vm" "data_park" {
+  name        = "data_park"
+  description = "Proxmox data park VM (for backups, storage etc)"
+  node_name   = data.proxmox_virtual_environment_node.node.node_name
+  vm_id       = 4200
+
+  started = false
+  on_boot = false
+
+  disk {
+    datastore_id = local.images_datastore_id
+    interface    = "scsi0"
+    size         = 16
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "proxmox_virtual_environment_vm" "data_provider" {
   name        = "data_provider"
   description = "Proxmox data provider (NFS, SFTP, Vault etc)"
@@ -118,12 +138,17 @@ resource "proxmox_virtual_environment_vm" "data_provider" {
     backup       = true
   }
 
-  disk {
-    datastore_id = local.images_datastore_id
-    interface    = "scsi1"
-    size         = 16
-    file_format  = "qcow2"
-    backup       = true
+  dynamic "disk" {
+    for_each = { for idx, val in proxmox_virtual_environment_vm.data_park.disk : idx => val }
+    iterator = data_disk
+    content {
+      datastore_id      = data_disk.value["datastore_id"]
+      path_in_datastore = data_disk.value["path_in_datastore"]
+      file_format       = data_disk.value["file_format"]
+      size              = data_disk.value["size"]
+      # assign from scsi1 and up
+      interface = "scsi${data_disk.key + 1}"
+    }
   }
 
   initialization {
