@@ -84,10 +84,10 @@ locals {
     }
   }
 
-  images = {
-    coreos = {
-      url      = jsondecode(data.http.coreos_stable_builds.response_body).architectures.aarch64.artifacts.hetzner.formats["raw.xz"].disk.location
-      checksum = jsondecode(data.http.coreos_stable_builds.response_body).architectures.aarch64.artifacts.hetzner.formats["raw.xz"].disk.sha256
+  terraform = {
+    ssh_key = {
+      private = tls_private_key.terraform_use.private_key_openssh
+      public  = tls_private_key.terraform_use.public_key_openssh
     }
   }
 
@@ -141,16 +141,14 @@ resource "random_password" "password" {
   min_special = 2
 }
 
+resource "tls_private_key" "terraform_use" {
+  algorithm = "ED25519"
+}
+
 data "http" "coreos_stable_builds" {
   url = "https://builds.coreos.fedoraproject.org/streams/stable.json"
   request_headers = {
     Accept = "application/json"
   }
-
-  lifecycle {
-    postcondition {
-      condition     = contains([200], self.status_code)
-      error_message = "Could not get the CoreOS stable builds"
-    }
-  }
 }
+

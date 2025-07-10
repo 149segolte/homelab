@@ -1,9 +1,5 @@
 provider "butane" {}
 
-resource "tls_private_key" "terraform_tmp_key" {
-  algorithm = "ED25519"
-}
-
 # Prefix locals with `bu_` to avoid conflicts with other locals
 locals {
   bu_user = {
@@ -12,7 +8,7 @@ locals {
     uid    = local.user.uid
     ssh_authorized_keys = [
       local.user.ssh_key,
-      tls_private_key.terraform_tmp_key.public_key_openssh
+      local.terraform.ssh_key.public
     ]
   }
 
