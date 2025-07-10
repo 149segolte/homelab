@@ -99,6 +99,13 @@ locals {
       endpoint  = "https://novasking.proxmox.arpa:8006"
       # endpoint  = "https://192.168.0.51:8006"
     }
+    images = {
+      coreos = {
+        release  = split(".", local.coreos_builds.x86_64.artifacts.ibmcloud.release)[0]
+        url      = local.coreos_builds.x86_64.artifacts.ibmcloud.formats["qcow2.xz"].disk.location
+        checksum = local.coreos_builds.x86_64.artifacts.ibmcloud.formats["qcow2.xz"].disk.sha256
+      }
+    }
   }
 
   hetzner = {
@@ -130,6 +137,8 @@ locals {
     username = data.vault_kv_secret_v2.variables.data["quay_io_packer"]
     password = data.vault_kv_secret_v2.tokens.data["quay_io_packer"]
   }
+
+  coreos_builds = jsondecode(data.http.coreos_stable_builds.response_body).architectures
 }
 
 resource "random_password" "password" {

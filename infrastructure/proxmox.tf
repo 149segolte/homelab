@@ -1,6 +1,6 @@
 provider "proxmox" {
   endpoint      = local.proxmox.node.endpoint
-  token         = local.proxmox.token
+  api_token     = local.proxmox.token
   random_vm_ids = false
 
   # because self-signed TLS certificate is in use
@@ -46,12 +46,21 @@ locals {
   images_datastore_id   = element(data.proxmox_virtual_environment_datastores.datastores.datastore_ids, tonumber(transpose(zipmap(range(length(data.proxmox_virtual_environment_datastores.datastores.content_types)), data.proxmox_virtual_environment_datastores.datastores.content_types))["images"][0]))
 }
 
-resource "proxmox_virtual_environment_download_file" "alpine_cloudinit_qcow2" {
-  node_name    = data.proxmox_virtual_environment_node.node.node_name
-  datastore_id = local.iso_datastore_id
+resource "proxmox_virtual_environment_download_file" "coreos_qcow2" {
   content_type = "iso"
-  file_name    = join(".", [reverse(split("/", local.os_releases.custom_alpine.url))[0], "img"])
-  url          = local.os_releases.custom_alpine.url
+  datastore_id = local.iso_datastore_id
+  node_name    = data.proxmox_virtual_environment_node.node.node_name
+
+  file_name = join(".", [reverse(split("/", local.proxmox.images.coreos.url))[0], "img"])
+  url       = local.proxmox.images.coreos.url
+
+  checksum                = local.proxmox.images.coreos.checksum
+  checksum_algorithm      = "sha256"
+  decompression_algorithm = "zst"
+
+  lifecycle {
+    ignore_changes = [file_name, url, checksum]
+  }
 }
 
 resource "proxmox_virtual_environment_file" "data_provider_config" {
@@ -66,9 +75,8 @@ resource "proxmox_virtual_environment_file" "data_provider_config" {
 }
 
 resource "proxmox_virtual_environment_vm" "data_provider" {
-  count       = local.proxmox.data_provider.restore ? 0 : 1
-  name        = "data-provider"
-  description = "Proxmox data provider"
+  name        = "data_provider"
+  description = "Proxmox data provider (NFS, SFTP, Vault etc)"
   node_name   = data.proxmox_virtual_environment_node.node.node_name
   machine     = "q35"
   vm_id       = 4201
@@ -80,8 +88,8 @@ resource "proxmox_virtual_environment_vm" "data_provider" {
   on_boot = true
   startup {
     order      = "1"
-    up_delay   = "30"
-    down_delay = "30"
+    up_delay   = "15"
+    down_delay = "15"
   }
 
   cpu {
@@ -103,10 +111,10 @@ resource "proxmox_virtual_environment_vm" "data_provider" {
   }
 
   disk {
-    datastore_id = local.images_datastore_id
-    file_id      = proxmox_virtual_environment_download_file.alpine_cloudinit_qcow2.id
+    datastore_id = local.iso_datastore_id
+    file_id      = proxmox_virtual_environment_download_file.coreos_qcow2.id
     interface    = "scsi0"
-    size         = 1
+    size         = 12
     backup       = true
   }
 
