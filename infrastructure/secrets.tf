@@ -1,11 +1,10 @@
 provider "vault" {
   # Only use hardcoded values if vault is running locally, otherwise use environment variables like VAULT_ADDR, VAULT_TOKEN, etc.
-  address      = local.vault.address
-  ca_cert_file = var.vault_cert
+  address = local.vault.address
 
   auth_login_userpass {
-    username = var.vault_username
-    password = var.vault_password
+    username = local.vault.username
+    password = local.vault.password
   }
 }
 

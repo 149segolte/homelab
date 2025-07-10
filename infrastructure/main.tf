@@ -55,13 +55,6 @@ variable "vault_password" {
   nullable    = false
 }
 
-variable "vault_cert" {
-  description = "Path to the vault server certificate"
-  type        = string
-  sensitive   = true
-  nullable    = false
-}
-
 variable "hetzner_data_restore" {
   description = "Flag for disabling/removing Hetzner resources to allow data restore"
   type        = bool
@@ -71,8 +64,10 @@ variable "hetzner_data_restore" {
 
 locals {
   vault = {
-    address       = "https://localhost:8200"
+    address       = "http://localhost:8200"
     kv_store_path = "homelab/terraform"
+    username      = var.vault_username
+    password      = var.vault_password
   }
 
   domain = {
