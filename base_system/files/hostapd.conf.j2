@@ -1,7 +1,7 @@
 # /root/hostapd.conf
 
-interface=wlan_ap # Match with `/etc/network/interfaces`
-bridge=vmbr1 # Match with `/etc/network/interfaces`
+interface={{ ap_interface }}
+bridge={{ ap_bridge }}
 driver=nl80211
 ssid={{ ap_mode_ssid }}
 

@@ -1,0 +1,17 @@
+vault_url: "" # URL
+
+target_packages: "" # Space separated list of package names
+vfio_device_ids: "" # Comma separated list of vendor:device IDs
+extra_disk_labels: "" # Space separated list of disk labels
+
+hostname: "" # Valid hostname
+dns_servers: "" # Space separated list of DNS servers
+network_type: "" # ethernet or wifi
+ethernet_interface: "" # Linux interface name, e.g. eth0
+wifi_interface: "" # Linux interface name, e.g. wlan0
+
+ap_interface: "" # Linux interface name, e.g. wlan0
+ap_bridge: "" # Linux bridge name, e.g. br0
+ap_mode: "" # 'g', 'a' or 'b'
+ap_mode_ssid: "" # Valid SSID
+ap_mode_password: "" # Valid password
